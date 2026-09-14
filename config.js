@@ -5,8 +5,25 @@
 // ============================================
 
 const CONFIG = {
+    // —— metadata（产品化：模板实例信息）——
+    metadata: {
+        author: "",            // 制作人（可留空）
+        created: "2026-09",    // 创建时间
+        version: "1.0.0",      // 实例版本
+        template: "warm-paper" // 所用主题模板名（对应 docs/CONFIG_SCHEMA.md）
+    },
+
+    // —— media（素材目录约定：往这些目录放文件即可被 config 引用）——
+    media: {
+        photos: "./assets/photos/",   // 照片（webp/jpg/png）
+        videos: "./assets/videos/",   // 视频（webm/mp4，建议 poster 静帧）
+        audio: "./assets/audio/",     // 音乐
+        voice: "./assets/voice/",     // 语音片段（信件 audio 字段用）
+        art: "./assets/art/"          // 主题美术资产（玫瑰等）
+    },
+
     // 浏览器标签页标题
-    pageTitle: "和你一起玩 💕",
+    pageTitle: "和你一起玩",
 
     // —— Theme Schema（视觉层：换主题 = 换这个对象）——
     theme: {

@@ -1,62 +1,38 @@
-# 和你一起玩 · 情侣互动小网页
+# Lover-page
 
-一个轻松、好玩、带点小惊喜的情侣互动网页，适合在一起之后偶尔拿出来一起玩。
-整体气质：暖奶油色动态渐变 + 植物铜版画玫瑰 + 衬线排版——像一件私人数字作品，而不是情人节模板。
+**高级艺术展示型私人情感网页生成系统**——当前仓库是第一个真实案例：一个给特定的人打开时具有强烈情绪反馈的私人互动网页。
 
-## 游戏流程
+打开的人会经历：动态渐变与铜版画玫瑰的开场 → 八个情绪章节（默契、心动、低语、小事、私人档案、来信、惊喜、落幕）→ 花瓣落幕。手机打开即可分享。
 
-开场（玫瑰 + 渐变呼吸）→ 首页 → 默契测试 → Love Meter → 随机问题 → 随机小任务 → 照片 → 随机惊喜 → 结束 → 再玩一次
+## 当前能力
 
-## 只改一个文件就能换全部内容
+- 动态艺术背景（mesh gradient 呼吸，site 级延续全站）
+- 第一屏主视觉（公有领域铜版画玫瑰，alpha 烘焙融入背景）
+- 私人照片档案馆（展签、揭幕动画、全屏灯箱）
+- 信件系统（含语音播放）
+- 互动测试（默契问答、Love Meter）、随机问题与小任务
+- 声音系统（BGM 音量渐变、章节微音效、语音）
+- 全部内容与主题由 `config.js` 驱动
 
-所有个人内容都在 **`config.js`**：
-
-- `home`：首页标题 / 副标题 / 开始按钮
-- `quiz`：默契测试题目、四个选项、正确答案下标 `answer`、对错文案
-- `meter` / `loveMessages`：Love Meter 文案
-- `randomQuestions`：随机问题库
-- `smallThings`：随机小任务库
-- `photos`：照片 / 视频（放 `assets/photos/`，支持 jpg/png/webp/mp4；`src` + `caption`）
-- `surprises`：随机惊喜文案
-- `ending`：结束页与"再玩一次"
-- `music.musicUrl`：背景音乐路径（默认 `./assets/audio/bgm.mp3`）
-- `colors`：全局配色（与第一屏同一视觉系统）
-
-## 本地预览
+## 快速开始
 
 ```bash
-python -m http.server 8000
-# 浏览器打开 http://127.0.0.1:8000
+python -m http.server 8000   # 打开 http://127.0.0.1:8000
 ```
 
-## 部署
+改内容只动 `config.js`；做自己的主题见 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)。
 
-纯静态页面（HTML + CSS + JS，无构建、无框架），可直接部署到 GitHub Pages / Netlify / Cloudflare Pages。
+## 文档
 
-## 目录结构
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 架构与模块
+- [docs/CONFIG_SCHEMA.md](docs/CONFIG_SCHEMA.md) — config 字段全解
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — 开发约束与测试清单
+- [docs/ROADMAP.md](docs/ROADMAP.md) — V1 模板化 / V2 编辑器 / V3 生成器
 
-```
-├── index.html         # 页面结构（含第一屏开场 markup）
-├── styles.css         # 全局视觉系统（与第一屏同一世界）
-├── css/intro.css      # 第一屏开场样式
-├── js/intro.js        # 开场 + site 级动态背景驱动
-├── vendor/
-│   └── mesh-gradient.esm.js   # mesh-gradient.js (MIT)，本地化
-├── assets/
-│   ├── art/           # Redouté《Les Roses》铜版画（公有领域，白底已烘焙为 alpha）
-│   ├── audio/bgm.mp3  # 背景音乐
-│   └── photos/        # 照片 / 视频
-├── config.js          # ★ 所有个人内容在这里改
-├── config-system.js   # 链接配置系统
-├── state.js           # 轻量状态管理
-├── theme.js           # config 配色 -> CSS 变量
-├── script.js          # 游戏逻辑
-└── LICENSE            # MIT License
-```
+## 未来方向
 
-## Credits / Licenses
+用户上传照片、语音、音乐、文字，选择主题，自动生成一个手机打开即可访问的私人情感网页（见 ROADMAP）。
 
-- **动态背景**：[anup-a/mesh-gradient.js](https://github.com/anup-a/mesh-gradient.js)，MIT。
-- **第一屏玫瑰**：Pierre-Joseph Redouté《Les Roses》(1817–1824) 铜版画，公有领域。
-- **母版骨架**：[ianjiteshan/valentine2026](https://github.com/ianjiteshan/valentine2026)，MIT。
-- 详见 [THIRD_PARTY.md](./THIRD_PARTY.md)。
+## Credits
+
+见 [THIRD_PARTY.md](THIRD_PARTY.md)（mesh-gradient.js MIT · Redouté 版画公有领域 · valentine2026 母版 MIT）。
