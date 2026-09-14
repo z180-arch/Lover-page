@@ -23,6 +23,13 @@
     --accent-ink: #fdf7f1;
     --accent-soft: rgba(168, 84, 79, 0.12);
 
+    /* ---------- elevation & fx ---------- */
+    --shadow-card: 0 12px 40px rgba(80, 50, 35, 0.1);
+    --shadow-thumb: 0 3px 10px rgba(90, 45, 40, 0.3);
+    --vignette: rgba(60, 40, 30, 0.05);
+    --shimmer: rgba(255, 255, 255, 0.55);
+    --scrim: rgba(30, 20, 16, 0.62);
+
     /* ---------- lines ---------- */
     --hairline: rgba(74, 58, 51, 0.14);
     --hairline-strong: rgba(74, 58, 51, 0.3);
@@ -92,7 +99,7 @@ body {
     background: radial-gradient(
       ellipse 120% 90% at 50% 46%,
       transparent 62%,
-      rgba(60, 40, 30, 0.05) 100%
+      var(--vignette) 100%
     );
 }
 
@@ -149,7 +156,7 @@ body {
     border: 1px solid var(--hairline);
     padding: var(--space-xl) var(--space-l) var(--space-l);
     border-radius: 4px;
-    box-shadow: 0 12px 40px rgba(80, 50, 35, 0.1);
+    box-shadow: var(--shadow-card);
     text-align: center;
     width: 90%;
     max-width: 560px;
@@ -373,7 +380,7 @@ h2 {
     cursor: pointer;
     border-radius: 50%;
     border: 3px solid var(--paper);
-    box-shadow: 0 3px 10px rgba(90, 45, 40, 0.3);
+    box-shadow: var(--shadow-thumb);
     transition: transform var(--dur-fast) ease;
 }
 
@@ -392,7 +399,7 @@ h2 {
     cursor: pointer;
     border-radius: 50%;
     border: 3px solid var(--paper);
-    box-shadow: 0 3px 10px rgba(90, 45, 40, 0.3);
+    box-shadow: var(--shadow-thumb);
 }
 
 #loveValue {
@@ -485,7 +492,7 @@ h2 {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.55) 50%, transparent 70%);
+    background: linear-gradient(100deg, transparent 30%, var(--shimmer) 50%, transparent 70%);
     animation: shimmer 1.4s ease-in-out infinite;
 }
 
@@ -655,7 +662,7 @@ body[data-step="celebration"] .celebration h2 {
     color: var(--accent-ink) !important;
     text-align: center;
     line-height: 1.8;
-    background: linear-gradient(180deg, rgba(30,20,16,0) 0%, rgba(30,20,16,0.62) 40%) !important;
+    background: linear-gradient(180deg, transparent 0%, var(--scrim) 40%) !important;
     padding: 26px 16px 14px !important;
 }
 
