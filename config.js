@@ -133,7 +133,6 @@ const CONFIG = {
     // 想换成自己的图，把文件放进 assets/photos 并改这里的 src / caption 即可。
     // 可选字段：date / place（美术馆展签用，不填则不显示该栏）
     photos: [
-        { src: "./assets/photos/holographic-src.jpg", caption: "第一张，先放在这里。" },
         { src: "./assets/photos/landscape-01.jpg", caption: "看到好看的天，第一反应是想发给你。" },
         { src: "./assets/photos/landscape-02.jpg", caption: "想和你一起去很高很高的地方看看。" },
         { src: "./assets/photos/landscape-03.jpg", caption: "雾蒙蒙的树林，很安静，像和你待着的时候。" },
@@ -144,6 +143,27 @@ const CONFIG = {
         { src: "./assets/photos/landscape-08.jpg", caption: "随便走走也挺好，只要是和你一起。" }
     ],
     photoNextBtn: "下一个",
+
+    // —— 信件 / 回忆（陆·来信）——
+    // 结构：{ date, title, content, image?, audio? }，为空数组时该章自动跳过
+    // audio 放 ./assets/voice/ 下的语音片段（mp3/m4a），可选
+    letters: [
+        {
+            date: "",
+            title: "第一封信",
+            content: "这一栏留给你们的故事。把想说的话写在这里，对方打开网页时，会在最合适的地方读到它。",
+            image: "",
+            audio: ""
+        }
+    ],
+    letterAgainBtn: "下一封",
+    letterNextBtn: "下一个",
+
+    // —— 声音（产品化：可关）——
+    sound: {
+        enabled: true,
+        uiTick: true       // 章节切换的极轻提示音（Web Audio 合成，无素材）
+    },
 
     // —— 随机惊喜（点礼物盒随机出一句）——
     surpriseBtn: "点一下，看看是什么",

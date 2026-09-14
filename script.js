@@ -117,6 +117,14 @@ window.addEventListener('DOMContentLoaded', () => {
     // Setup Share Button（母版原有，保留）
     setupShareButton();
 
+    // 信件章文案 + 初始状态
+    document.getElementById('letterAgainBtn').textContent = config.letterAgainBtn;
+    document.getElementById('letterNextBtn').textContent = config.letterNextBtn;
+    renderLetter();
+
+    // AudioContext 需要用户手势解锁：开场按钮点击时预热
+    document.getElementById('introEnter').addEventListener('click', () => Sound.ensure(), { once: true });
+
     // 初始章节旅程（state 订阅只在变化时触发）
     document.body.dataset.step = '1';
     const fill = document.getElementById('journeyFill');
@@ -144,8 +152,12 @@ function createFloatingElements() {
     }
 }
 
-// 母版原有：步骤切换（完整保留）
+// 母版原有：步骤切换（完整保留）+ 产品化：空章节自动跳过
 function showNextQuestion(questionNumber) {
+    if (questionNumber === 7 && !(config.letters && config.letters.length)) {
+        questionNumber = 8; // 没有信件就跳过“来信”章
+    }
+    if (config.sound && config.sound.uiTick) Sound.tick();
     window.appState.setState({ currentStep: questionNumber });
 }
 
@@ -392,6 +404,134 @@ function prevPhoto() {
 }
 
 // ============================================================
+// 信件 / 回忆（陆·来信）
+// ============================================================
+let letterIndex = 0;
+let letterAudio = null;
+
+function renderLetter() {
+    const stage = document.getElementById('letterStage');
+    const hint = document.getElementById('letterHint');
+    const list = config.letters || [];
+    if (!list.length) return;
+    const p = list[letterIndex];
+
+    const meta = p.date ? `<div class="letter-date">${p.date}</div>` : '';
+    const img = p.image ? `<img src="${p.image}" alt="" loading="lazy" />` : '';
+    const audio = p.audio ? `
+        <button class="voice-btn" type="button" data-src="${p.audio}" aria-label="播放语音">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          <span>播放语音</span>
+        </button>` : '';
+
+    stage.innerHTML = `
+      <article class="letter-card is-opening">
+        ${meta}
+        <h3 class="letter-title">${p.title || ''}</h3>
+        ${img}
+        <p class="letter-body">${p.content || ''}</p>
+        ${audio}
+      </article>`;
+    hint.textContent = list.length > 1 ? `${letterIndex + 1} / ${list.length}` : '';
+
+    if (list.length > 1) {
+        document.getElementById('letterAgainBtn').classList.remove('hidden');
+    }
+
+    const vb = stage.querySelector('.voice-btn');
+    if (vb) {
+        vb.addEventListener('click', () => toggleVoice(vb, p.audio));
+    }
+
+    // 结束后移除开信动画类
+    const card = stage.querySelector('.letter-card');
+    card.addEventListener('animationend', (e) => {
+        if (e.animationName === 'letterOpen') card.classList.remove('is-opening');
+    });
+}
+
+function nextLetter() {
+    const list = config.letters || [];
+    letterIndex = (letterIndex + 1) % list.length;
+    renderLetter();
+}
+
+/* 语音播放：原生 <audio> + 音量渐入，无依赖 */
+function toggleVoice(btn, src) {
+    if (letterAudio && !letterAudio.paused) {
+        fadeVolume(letterAudio, 0, 400, () => {
+            letterAudio.pause();
+            resetVoiceBtn();
+        });
+        return;
+    }
+    resetVoiceBtn();
+    letterAudio = new Audio(src);
+    letterAudio.volume = 0;
+    letterAudio.play().then(() => {
+        fadeVolume(letterAudio, config.music.volume || 0.6, 800);
+        btn.classList.add('is-playing');
+        btn.querySelector('span').textContent = '暂停';
+        letterAudio.onended = resetVoiceBtn;
+    }).catch(() => {
+        btn.querySelector('span').textContent = '暂时无法播放';
+    });
+}
+function resetVoiceBtn() {
+    document.querySelectorAll('.voice-btn').forEach(b => {
+        b.classList.remove('is-playing');
+        const sp = b.querySelector('span');
+        if (sp) sp.textContent = '播放语音';
+    });
+}
+
+/* 音量线性渐变（BGM 与语音共用） */
+function fadeVolume(audioEl, target, ms, done) {
+    const from = audioEl.volume;
+    const t0 = performance.now();
+    (function step(now) {
+        const k = Math.min(1, (now - t0) / ms);
+        audioEl.volume = Math.max(0, Math.min(1, from + (target - from) * k));
+        if (k < 1) requestAnimationFrame(step);
+        else if (done) done();
+    })(t0);
+}
+
+// ============================================================
+// 声音系统（Web Audio 合成微音效，零素材）
+// ============================================================
+const Sound = {
+    ctx: null,
+    ensure() {
+        if (!this.ctx) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (AC) this.ctx = new AC();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+        return this.ctx;
+    },
+    /* 极轻的纸张/风铃质感提示音：两个正弦短音 + 快速衰减 */
+    tick() {
+        if (!(config.sound && config.sound.uiTick)) return;
+        const ctx = this.ensure();
+        if (!ctx) return;
+        const t = ctx.currentTime;
+        [[1244, 0], [1866, 0.06]].forEach(([freq, delay]) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.0001, t + delay);
+            gain.gain.exponentialRampToValueAtTime(0.045, t + delay + 0.012);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + delay + 0.22);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(t + delay);
+            osc.stop(t + delay + 0.25);
+        });
+    }
+};
+
+// ============================================================
 // 随机惊喜
 // ============================================================
 function nextSurprise() {
@@ -480,8 +620,13 @@ function setupMusicPlayer() {
     }
 
     musicSource.src = config.music.musicUrl;
-    bgMusic.volume = config.music.volume || 0.5;
+    bgMusic.volume = 0;
     bgMusic.load();
+
+    // 播放/暂停都走音量渐变，避免生硬
+    const targetVol = config.music.volume || 0.5;
+    bgMusic.addEventListener('play', () => fadeVolume(bgMusic, targetVol, 1400));
+    bgMusic.addEventListener('pause', () => fadeVolume(bgMusic, 0, 500));
 
     // 尝试自动播放
     if (config.music.autoplay) {

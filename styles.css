@@ -544,6 +544,87 @@ h2 {
     to   { clip-path: inset(0 0 0% 0); }
 }
 
+/* ---------- 信件（陆·来信）：私人信笺 ---------- */
+.letter-stage {
+    margin: var(--space-s) 0 var(--space-2xs);
+}
+
+.letter-card {
+    position: relative;
+    background: var(--paper);
+    border: 1px solid var(--hairline);
+    padding: var(--space-l) var(--space-m);
+    text-align: left;
+    box-shadow: var(--shadow-card);
+}
+
+.letter-card.is-opening {
+    animation: letterOpen var(--dur-slow) var(--ease-out) both;
+}
+
+.letter-date {
+    font-family: var(--font-outlier);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--ink-faint);
+    margin-bottom: var(--space-2xs);
+    line-height: 1;
+}
+
+.letter-title {
+    font-size: 1.05rem;
+    font-weight: 400;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    margin: 0 0 var(--space-m);
+}
+
+.letter-card img {
+    display: block;
+    width: 100%;
+    max-height: 38vh;
+    object-fit: cover;
+    margin: var(--space-m) 0;
+}
+
+.letter-body {
+    font-size: 0.98rem;
+    line-height: 2.2;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+    margin: 0;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.voice-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2xs);
+    margin-top: var(--space-m);
+    padding: var(--space-2xs) var(--space-s);
+    background: transparent;
+    border: 1px solid var(--hairline-strong);
+    border-radius: 999px;
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+
+.voice-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.voice-btn.is-playing {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.voice-btn svg { width: 12px; height: 12px; }
+.voice-btn.is-playing svg { animation: softBreathe 1.2s ease-in-out infinite alternate; }
+
 /* ---------- 随机惊喜（拆信） ---------- */
 .surprise-gift { font-size: 1.05rem; }
 

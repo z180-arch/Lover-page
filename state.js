@@ -32,7 +32,8 @@ const JOURNEY = {
     4: { label: '叁', progress: 48 },
     5: { label: '肆', progress: 64 },
     6: { label: '伍', progress: 80 },
-    7: { label: '陆', progress: 95 },
+    7: { label: '陆', progress: 90 },
+    8: { label: '柒', progress: 96 },
     celebration: { label: '终', progress: 100 }
 };
 

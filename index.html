@@ -7,9 +7,9 @@
     <!-- CUSTOMIZE: Browser tab title（由 config.js 的 pageTitle 覆盖） -->
     <title>和你一起玩 💕</title>
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css?v=7" />
-    <link rel="stylesheet" href="css/intro.css?v=7" />
-    <link rel="stylesheet" href="vendor/glightbox.min.css?v=7" />
+    <link rel="stylesheet" href="styles.css?v=8" />
+    <link rel="stylesheet" href="css/intro.css?v=8" />
+    <link rel="stylesheet" href="vendor/glightbox.min.css?v=8" />
   </head>
   <body class="intro-active">
     <!-- Site 级动态背景（第一屏与后续页面共用，js/intro.js 驱动） -->
@@ -120,9 +120,20 @@
         </div>
       </section>
 
-      <!-- Step 7 — 随机惊喜 -->
+      <!-- Step 7 — 信件 / 回忆（letters 为空时自动跳过） -->
       <section class="question-section hidden" id="question7">
-        <div class="chapter-kicker">陆 · 惊喜</div>
+        <div class="chapter-kicker">陆 · 来信</div>
+        <div class="letter-stage" id="letterStage"></div>
+        <p class="photo-caption" id="letterHint"></p>
+        <div class="button-group">
+          <button class="cute-btn hidden" onclick="nextLetter()" id="letterAgainBtn"></button>
+          <button class="cute-btn" onclick="showNextQuestion(8)" id="letterNextBtn"></button>
+        </div>
+      </section>
+
+      <!-- Step 8 — 随机惊喜 -->
+      <section class="question-section hidden" id="question8">
+        <div class="chapter-kicker">柒 · 惊喜</div>
         <div class="button-group">
           <button class="cute-btn surprise-gift" onclick="nextSurprise()" id="surpriseBtn"></button>
         </div>
@@ -176,12 +187,12 @@
     </div>
 
     <!-- Scripts -->
-    <script src="config.js?v=7"></script>
-    <script src="config-system.js?v=7"></script>
-    <script src="state.js?v=7"></script>
-    <script src="theme.js?v=7"></script>
-    <script src="vendor/glightbox.min.js?v=7"></script>
-    <script src="script.js?v=7"></script>
-    <script type="module" src="js/intro.js?v=7"></script>
+    <script src="config.js?v=8"></script>
+    <script src="config-system.js?v=8"></script>
+    <script src="state.js?v=8"></script>
+    <script src="theme.js?v=8"></script>
+    <script src="vendor/glightbox.min.js?v=8"></script>
+    <script src="script.js?v=8"></script>
+    <script type="module" src="js/intro.js?v=8"></script>
   </body>
 </html>
