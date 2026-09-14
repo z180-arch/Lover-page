@@ -8,19 +8,27 @@ const CONFIG = {
     // 浏览器标签页标题
     pageTitle: "和你一起玩 💕",
 
-    // —— 第一屏开场（产品化：换人只改这里）——
-    intro: {
-        title: "我们的小小世界",
-        subtitle: "A little world, just for us.",
-        enterBtn: "进　入"
-    },
-
-    // —— 主题层（产品化：视觉参数全部可换）——
+    // —— Theme Schema（视觉层：换主题 = 换这个对象）——
     theme: {
-        gradient: ["#f7ece2", "#f3d5cb", "#f7ddc0", "#f2e6d9"],  // mesh gradient 四色
-        rose: "./assets/art/redoute-gallica-bloom.webp",          // 第一屏主视觉
-        petalColors: ["#dda3ab", "#c4777f"],                      // 花瓣双色
-        motionSpeed: 700                                          // 渐变呼吸速率（越小越慢）
+        colors: {
+            gradient: ["#f7ece2", "#f3d5cb", "#f7ddc0", "#f2e6d9"],  // mesh gradient 四色
+            petalColors: ["#dda3ab", "#c4777f"]                       // 花瓣双色
+        },
+        fonts: {
+            // 留空 = 系统衬线栈；可填本地/子集 webfont 路径
+            body: "",
+            outlier: ""
+        },
+        hero: {
+            rose: "./assets/art/redoute-gallica-bloom.webp",  // 第一屏主视觉
+            title: "我们的小小世界",
+            subtitle: "A little world, just for us.",
+            enterBtn: "进　入"
+        },
+        motion: {
+            gradientSpeed: 700          // 渐变呼吸速率（u_time 单位/秒，越小越慢）
+        },
+        components: {}                  // 预留：photoStyle / letterStyle / buttonStyle
     },
 
     // 首页最上方的英文手写标题（母版原样）。
@@ -144,25 +152,36 @@ const CONFIG = {
     ],
     photoNextBtn: "下一个",
 
-    // —— 信件 / 回忆（陆·来信）——
-    // 结构：{ date, title, content, image?, audio? }，为空数组时该章自动跳过
-    // audio 放 ./assets/voice/ 下的语音片段（mp3/m4a），可选
-    letters: [
-        {
-            date: "",
-            title: "第一封信",
-            content: "这一栏留给你们的故事。把想说的话写在这里，对方打开网页时，会在最合适的地方读到它。",
-            image: "",
-            audio: ""
-        }
-    ],
+    // —— Experience Schema（章节结构：state.js 读取；留空 = 内置默认）——
+    // chapters: [{ step: 2, id: "quiz", label: "壹", enabled: true }, ...]
+    experience: {
+        chapters: []
+    },
+
+    // —— Content Schema：故事层 ——
+    // letters：{ date, title, content, image?, audio? }，为空数组时该章自动跳过
+    // memories：{ date, text, photo } 预留（时间轴模块）
+    story: {
+        letters: [
+            {
+                date: "",
+                title: "第一封信",
+                content: "这一栏留给你们的故事。把想说的话写在这里，对方打开网页时，会在最合适的地方读到它。",
+                image: "",
+                audio: ""
+            }
+        ],
+        memories: []
+    },
     letterAgainBtn: "下一封",
     letterNextBtn: "下一个",
 
-    // —— 声音（产品化：可关）——
+    // —— 声音 Schema（所有声音行为读这里）——
     sound: {
-        enabled: true,
-        uiTick: true       // 章节切换的极轻提示音（Web Audio 合成，无素材）
+        bgm: "",            // 留空 = 沿用 music.musicUrl
+        volume: 0.5,
+        uiTick: true,       // 章节切换的极轻提示音（Web Audio 合成，无素材）
+        voiceEnabled: true  // 信件语音播放器开关
     },
 
     // —— 随机惊喜（点礼物盒随机出一句）——

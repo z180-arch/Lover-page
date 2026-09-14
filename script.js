@@ -63,13 +63,15 @@ window.addEventListener('DOMContentLoaded', () => {
     const introTitle = document.getElementById('introTitle');
     const introSub = document.getElementById('introSub');
     const introEnter = document.getElementById('introEnter');
-    if (introTitle && config.intro) introTitle.textContent = config.intro.title;
-    if (introSub && config.intro) introSub.textContent = config.intro.subtitle;
-    if (introEnter && config.intro) introEnter.textContent = config.intro.enterBtn;
+    const hero = (config.theme && config.theme.hero) || config.intro || {};
+    if (introTitle && hero.title) introTitle.textContent = hero.title;
+    if (introSub && hero.subtitle) introSub.textContent = hero.subtitle;
+    if (introEnter && hero.enterBtn) introEnter.textContent = hero.enterBtn;
 
     // 首页：h1 为母版英文手写标题（最上方），h2 为中文标题，副标题在其下
+    const enTitle = (config.home && config.home.enTitle) || 'my love...';
     const enPrefix = config.valentineName ? `${config.valentineName}, ` : '';
-    document.getElementById('valentineTitle').textContent = `${enPrefix}my love...`;
+    document.getElementById('valentineTitle').textContent = `${enPrefix}${enTitle}`;
     document.getElementById('homeTitle').textContent = config.home.title;
     document.getElementById('homeSubtitle').textContent = config.home.subtitle;
     document.getElementById('homeStartBtn').textContent = config.home.startBtn;
@@ -154,7 +156,7 @@ function createFloatingElements() {
 
 // 母版原有：步骤切换（完整保留）+ 产品化：空章节自动跳过
 function showNextQuestion(questionNumber) {
-    if (questionNumber === 7 && !(config.letters && config.letters.length)) {
+    if (questionNumber === 7 && !(((config.story && config.story.letters) || config.letters || []).length)) {
         questionNumber = 8; // 没有信件就跳过“来信”章
     }
     if (config.sound && config.sound.uiTick) Sound.tick();
@@ -230,10 +232,12 @@ loveMeter.addEventListener('input', () => {
     if (value > 100) {
         extraLove.classList.remove('hidden');
 
-        if (value >= 5000) {
+        const th = Object.assign({ normal: 100, high: 1000, extreme: 5000 },
+            (config.meter && config.meter.thresholds) || {});
+        if (value >= th.extreme) {
             extraLove.classList.add('super-love');
             extraLove.textContent = config.loveMessages.extreme;
-        } else if (value > 1000) {
+        } else if (value > th.high) {
             extraLove.classList.remove('super-love');
             extraLove.textContent = config.loveMessages.high;
         } else {
@@ -311,7 +315,7 @@ function buildPhotoLightbox() {
     if (typeof GLightbox === 'undefined') return;
     const elements = (config.photos || [])
         .filter(p => !/\.(mp4|webm|mov|ogg|m4v)(\?|$)/i.test(p.src || ''))
-        .map(p => ({ href: p.src, type: 'image', description: p.caption || '' }));
+        .map(p => ({ href: p.src, type: 'image', description: p.description || p.caption || '' }));
     if (!elements.length) return;
     photoLightbox = GLightbox({ elements: elements, loop: true, touchNavigation: true });
 }
@@ -336,14 +340,14 @@ function renderPhoto() {
     }
     const p = list[photoIndex];
     const isVideo = /\.(mp4|webm|mov|ogg|m4v)(\?|$)/i.test(p.src || '');
-    const plate = [p.date, p.place].filter(Boolean).join(' · ');
+    const plate = [p.date, p.place || p.location].filter(Boolean).join(' · ');
     const plateHtml = plate
         ? `<div class="photo-plate"><span>${plate}</span><span class="plate-seq">${photoIndex + 1} / ${list.length}</span></div>`
         : `<div class="photo-plate"><span class="plate-seq">${photoIndex + 1} / ${list.length}</span></div>`;
     stage.innerHTML = isVideo
         ? `<div class="photo-frame is-loading"><video src="${p.src}" controls playsinline loop muted></video>${plateHtml}</div>`
-        : `<div class="photo-frame is-loading is-revealing"><img src="${p.src}" alt="回忆" loading="lazy" />${plateHtml}</div>`;
-    caption.textContent = p.caption || '';
+        : `<div class="photo-frame is-loading is-revealing"><img src="${p.thumb || p.src}" alt="${p.title || '回忆'}" loading="lazy" />${plateHtml}</div>`;
+    caption.textContent = p.description || p.caption || '';
 
     const frame = stage.querySelector('.photo-frame');
     if (frame) {
@@ -412,13 +416,13 @@ let letterAudio = null;
 function renderLetter() {
     const stage = document.getElementById('letterStage');
     const hint = document.getElementById('letterHint');
-    const list = config.letters || [];
+    const list = (config.story && config.story.letters) || config.letters || [];
     if (!list.length) return;
     const p = list[letterIndex];
 
     const meta = p.date ? `<div class="letter-date">${p.date}</div>` : '';
     const img = p.image ? `<img src="${p.image}" alt="" loading="lazy" />` : '';
-    const audio = p.audio ? `
+    const audio = (p.audio && config.sound && config.sound.voiceEnabled !== false) ? `
         <button class="voice-btn" type="button" data-src="${p.audio}" aria-label="播放语音">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
           <span>播放语音</span>
@@ -451,7 +455,7 @@ function renderLetter() {
 }
 
 function nextLetter() {
-    const list = config.letters || [];
+    const list = (config.story && config.story.letters) || config.letters || [];
     letterIndex = (letterIndex + 1) % list.length;
     renderLetter();
 }
@@ -619,12 +623,12 @@ function setupMusicPlayer() {
         return;
     }
 
-    musicSource.src = config.music.musicUrl;
+    musicSource.src = (config.sound && config.sound.bgm) || config.music.musicUrl;
     bgMusic.volume = 0;
     bgMusic.load();
 
     // 播放/暂停都走音量渐变，避免生硬
-    const targetVol = config.music.volume || 0.5;
+    const targetVol = (config.sound && config.sound.volume) || config.music.volume || 0.5;
     bgMusic.addEventListener('play', () => fadeVolume(bgMusic, targetVol, 1400));
     bgMusic.addEventListener('pause', () => fadeVolume(bgMusic, 0, 500));
 

@@ -24,8 +24,8 @@ window.appState = {
     }
 };
 
-/* 章节旅程：序 + 六章 + 终（庆祝） */
-const JOURNEY = {
+/* 章节旅程：默认序 + 六章 + 终；config.experience.chapters 可整体覆盖 */
+const DEFAULT_JOURNEY = {
     1: { label: '序', progress: 0 },
     2: { label: '壹', progress: 16 },
     3: { label: '贰', progress: 32 },
@@ -36,6 +36,16 @@ const JOURNEY = {
     8: { label: '柒', progress: 96 },
     celebration: { label: '终', progress: 100 }
 };
+
+function journeyFor(step) {
+    const cfg = window.VALENTINE_CONFIG;
+    const chapters = cfg && cfg.experience && cfg.experience.chapters;
+    if (chapters && chapters.length) {
+        const c = chapters.find(function (c) { return String(c.step) === String(step); });
+        if (c) return { label: c.label, progress: c.progress };
+    }
+    return DEFAULT_JOURNEY[step] || DEFAULT_JOURNEY[1];
+}
 
 /* DOM 变更包一层同文档 View Transitions（Baseline 2025.10），
    不支持的浏览器直接切换（现有 sectionIn 动画仍是兜底） */
@@ -67,8 +77,8 @@ window.appState.subscribe((state, oldState) => {
             }
         });
 
-        // 章节旅程
-        const chapter = JOURNEY[state.currentStep] || JOURNEY[1];
+        // 章节旅程（config.experience.chapters 可覆盖）
+        const chapter = journeyFor(state.currentStep);
         document.body.dataset.step = String(state.currentStep);
         const label = document.getElementById('journeyLabel');
         const fill = document.getElementById('journeyFill');

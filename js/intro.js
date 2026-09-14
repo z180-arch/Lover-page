@@ -13,10 +13,11 @@ const MeshGradient = MeshGradientModule && MeshGradientModule.default
 
 /* 主题来自 config.theme（产品化：换主题只改 JSON） */
 const CFG = window.VALENTINE_CONFIG || {};
+const T = CFG.theme || {};
 const PALETTE = {
-  colors: (CFG.theme && CFG.theme.gradient) || ['#f7ece2', '#f3d5cb', '#f7ddc0', '#f2e6d9'],
+  colors: (T.colors && T.colors.gradient) || T.gradient || ['#f7ece2', '#f3d5cb', '#f7ddc0', '#f2e6d9'],
   amp: 130,
-  speed: (CFG.theme && CFG.theme.motionSpeed) || 700,
+  speed: (T.motion && T.motion.gradientSpeed) || T.motionSpeed || 700,
 };
 
 let gradient = null;
@@ -108,8 +109,8 @@ function init() {
   }
 
   const roseImg = overlay.querySelector('.intro-rose img');
-  if (roseImg && CFG.theme && CFG.theme.rose) {
-    roseImg.src = CFG.theme.rose;
+  if (roseImg && T.hero && T.hero.rose) {
+    roseImg.src = T.hero.rose;
   }
 
   musicBtn = overlay.querySelector('.intro-music');

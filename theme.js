@@ -15,6 +15,11 @@ function applyTheme() {
     root.style.setProperty('--float-distance', config.animations.floatDistance);
     root.style.setProperty('--bounce-speed', config.animations.bounceSpeed);
     root.style.setProperty('--heart-explosion-size', config.animations.heartExplosionSize);
+
+    // Theme Schema：字体（留空 = 内置系统衬线栈）
+    const fonts = config.theme && config.theme.fonts;
+    if (fonts && fonts.body) root.style.setProperty('--font-body', fonts.body);
+    if (fonts && fonts.outlier) root.style.setProperty('--font-outlier', fonts.outlier);
 }
 
 // Apply theme when the page loads
