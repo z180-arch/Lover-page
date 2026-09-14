@@ -355,6 +355,8 @@ h2 {
     object-fit: cover;
 }
 
+.photo-frame.is-clickable { cursor: zoom-in; }
+
 .photo-frame.is-loading::after {
     content: '';
     position: absolute;
@@ -514,7 +516,9 @@ h2 {
     .celebration,
     .random-text.is-swapping,
     #extraLove,
-    .photo-frame.is-loading::after {
+    .photo-frame.is-clickable { cursor: zoom-in; }
+
+.photo-frame.is-loading::after {
         animation: none !important;
     }
     .surprise-text { transition: none; }

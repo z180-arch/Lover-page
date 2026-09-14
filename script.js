@@ -87,8 +87,9 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('smallThingNextBtn').textContent = config.smallThingNextBtn;
     showSmallThing();
 
-    // 照片
+    // 照片（先建灯箱再渲染，保证首张即可点开）
     document.getElementById('photoNextBtn').textContent = config.photoNextBtn;
+    buildPhotoLightbox();
     renderPhoto();
 
     // 随机惊喜
@@ -283,6 +284,28 @@ function nextSmallThing() { showSmallThing(); }
 // 照片（母版无此区域，使用母版按钮 / 配色变量做最简单展示）
 // ============================================================
 let photoIndex = 0;
+let photoLightbox = null;
+
+/* 灯箱：GLightbox (MIT, 本地 vendor)。只收录图片；视频走内联播放。
+   照片多时建议提供 thumb/full 双份 WebP（见 README），href 用 full 大图。 */
+function buildPhotoLightbox() {
+    if (typeof GLightbox === 'undefined') return;
+    const elements = (config.photos || [])
+        .filter(p => !/\.(mp4|webm|mov|ogg|m4v)(\?|$)/i.test(p.src || ''))
+        .map(p => ({ href: p.src, type: 'image', description: p.caption || '' }));
+    if (!elements.length) return;
+    photoLightbox = GLightbox({ elements: elements, loop: true, touchNavigation: true });
+}
+
+function imageIndexAmongPhotos(idx) {
+    const list = config.photos || [];
+    let n = 0;
+    for (let i = 0; i < idx && i < list.length; i++) {
+        if (!/\.(mp4|webm|mov|ogg|m4v)(\?|$)/i.test(list[i].src || '')) n++;
+    }
+    return n;
+}
+
 function renderPhoto() {
     const stage = document.getElementById('photoStage');
     const caption = document.getElementById('photoCaption');
@@ -309,6 +332,12 @@ function renderPhoto() {
             frame.classList.remove('is-loading');
             frame.innerHTML = '<div class="photo-error">这张照片暂时加载不出来。</div>';
         });
+        if (photoLightbox) {
+            frame.classList.add('is-clickable');
+            frame.addEventListener('click', () => {
+                photoLightbox.openAt(imageIndexAmongPhotos(photoIndex));
+            });
+        }
     }
     if (video) {
         video.muted = true;
