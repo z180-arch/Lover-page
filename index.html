@@ -7,20 +7,25 @@
     <!-- CUSTOMIZE: Browser tab title（由 config.js 的 pageTitle 覆盖） -->
     <title>和你一起玩 💕</title>
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="css/intro.css" />
-    <link rel="stylesheet" href="vendor/glightbox.min.css" />
+    <link rel="stylesheet" href="styles.css?v=7" />
+    <link rel="stylesheet" href="css/intro.css?v=7" />
+    <link rel="stylesheet" href="vendor/glightbox.min.css?v=7" />
   </head>
   <body class="intro-active">
     <!-- Site 级动态背景（第一屏与后续页面共用，js/intro.js 驱动） -->
     <canvas id="bg-canvas" aria-hidden="true"></canvas>
     <div class="vignette" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
 
     <!-- Floating Petals（替代母版 emoji 漂浮元素，由 JS 生成） -->
     <div class="floating-elements" aria-hidden="true"></div>
 
     <!-- Main Content Container -->
     <main class="container">
+      <div class="journey" aria-hidden="true">
+        <span class="journey-label" id="journeyLabel">序</span>
+        <span class="journey-line"><i id="journeyFill"></i></span>
+      </div>
       <h1 id="valentineTitle"></h1>
 
       <!-- Music Player（音乐源为本地 ./assets/audio/bgm.mp3） -->
@@ -49,6 +54,7 @@
 
       <!-- Step 2 — 小游戏1：默契测试 -->
       <section class="question-section hidden" id="question2">
+        <div class="chapter-kicker">壹 · 默契</div>
         <h2 id="quizText"></h2>
         <div class="option-group" id="quizOptions"></div>
         <p class="game-feedback" id="quizFeedback"></p>
@@ -59,6 +65,7 @@
 
       <!-- Step 3 — 小游戏2：Love Meter -->
       <section class="question-section hidden" id="question3">
+        <div class="chapter-kicker">贰 · 心动</div>
         <h2 id="meterText"></h2>
         <div class="love-meter">
           <label for="loveMeter" class="sr-only">Love Meter</label>
@@ -83,6 +90,7 @@
 
       <!-- Step 4 — 小游戏3：随机问题 -->
       <section class="question-section hidden" id="question4">
+        <div class="chapter-kicker">叁 · 想问你</div>
         <h2 class="random-text" id="randomQuestionText"></h2>
         <div class="button-group">
           <button class="cute-btn" onclick="nextRandomQuestion()" id="questionAgainBtn"></button>
@@ -92,8 +100,9 @@
 
       <!-- Step 5 — 小游戏4：随机小任务 -->
       <section class="question-section hidden" id="question5">
+        <div class="chapter-kicker">肆 · 小事</div>
         <h2 id="smallThingsTitle"></h2>
-        <p class="random-text" id="smallThingText"></p>
+        <p class="random-text task-note" id="smallThingText"></p>
         <div class="button-group">
           <button class="cute-btn" onclick="nextSmallThing()" id="smallThingAgainBtn"></button>
           <button class="cute-btn" onclick="showNextQuestion(6)" id="smallThingNextBtn"></button>
@@ -102,6 +111,7 @@
 
       <!-- Step 6 — 照片（展示区预留：后续可替换为全息卡片组件，数据接口不变） -->
       <section class="question-section hidden" id="question6">
+        <div class="chapter-kicker">伍 · 私人档案</div>
         <div class="photo-stage" id="photoStage"></div>
         <p class="photo-caption" id="photoCaption"></p>
         <div class="button-group">
@@ -112,6 +122,7 @@
 
       <!-- Step 7 — 随机惊喜 -->
       <section class="question-section hidden" id="question7">
+        <div class="chapter-kicker">陆 · 惊喜</div>
         <div class="button-group">
           <button class="cute-btn surprise-gift" onclick="nextSurprise()" id="surpriseBtn"></button>
         </div>
@@ -150,8 +161,8 @@
         <img src="./assets/art/redoute-gallica-bloom.webp" alt="" />
       </div>
       <div class="intro-copy">
-        <h1 class="intro-title">我们的小小世界</h1>
-        <p class="intro-sub">A little world, just for us.</p>
+        <h1 class="intro-title" id="introTitle">我们的小小世界</h1>
+        <p class="intro-sub" id="introSub">A little world, just for us.</p>
         <button id="introEnter" class="intro-enter" type="button">进　入</button>
       </div>
       <button id="introMusic" class="intro-music" type="button" aria-label="切换音乐">
@@ -165,12 +176,12 @@
     </div>
 
     <!-- Scripts -->
-    <script src="config.js"></script>
-    <script src="config-system.js"></script>
-    <script src="state.js"></script>
-    <script src="theme.js"></script>
-    <script src="vendor/glightbox.min.js"></script>
-    <script src="script.js"></script>
-    <script type="module" src="js/intro.js"></script>
+    <script src="config.js?v=7"></script>
+    <script src="config-system.js?v=7"></script>
+    <script src="state.js?v=7"></script>
+    <script src="theme.js?v=7"></script>
+    <script src="vendor/glightbox.min.js?v=7"></script>
+    <script src="script.js?v=7"></script>
+    <script type="module" src="js/intro.js?v=7"></script>
   </body>
 </html>

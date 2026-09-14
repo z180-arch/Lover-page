@@ -59,6 +59,14 @@ document.title = config.pageTitle;
 window.addEventListener('DOMContentLoaded', () => {
     validateConfig();
 
+    // 第一屏开场文案（config.intro）
+    const introTitle = document.getElementById('introTitle');
+    const introSub = document.getElementById('introSub');
+    const introEnter = document.getElementById('introEnter');
+    if (introTitle && config.intro) introTitle.textContent = config.intro.title;
+    if (introSub && config.intro) introSub.textContent = config.intro.subtitle;
+    if (introEnter && config.intro) introEnter.textContent = config.intro.enterBtn;
+
     // 首页：h1 为母版英文手写标题（最上方），h2 为中文标题，副标题在其下
     const enPrefix = config.valentineName ? `${config.valentineName}, ` : '';
     document.getElementById('valentineTitle').textContent = `${enPrefix}my love...`;
@@ -108,6 +116,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Setup Share Button（母版原有，保留）
     setupShareButton();
+
+    // 初始章节旅程（state 订阅只在变化时触发）
+    document.body.dataset.step = '1';
+    const fill = document.getElementById('journeyFill');
+    if (fill) fill.style.setProperty('--journey-progress', '0%');
 });
 
 // ============================================================
@@ -195,7 +208,6 @@ const extraLove = document.getElementById('extraLove');
 function setInitialPosition() {
     loveMeter.value = 100;
     loveValue.textContent = 100;
-    loveMeter.style.width = '100%';
 }
 
 loveMeter.addEventListener('input', () => {
@@ -205,10 +217,6 @@ loveMeter.addEventListener('input', () => {
 
     if (value > 100) {
         extraLove.classList.remove('hidden');
-        const overflowPercentage = (value - 100) / 9900;
-        const extraWidth = overflowPercentage * window.innerWidth * 0.8;
-        loveMeter.style.width = `calc(100% + ${extraWidth}px)`;
-        loveMeter.style.transition = 'width 0.3s';
 
         if (value >= 5000) {
             extraLove.classList.add('super-love');
@@ -223,7 +231,6 @@ loveMeter.addEventListener('input', () => {
     } else {
         extraLove.classList.add('hidden');
         extraLove.classList.remove('super-love');
-        loveMeter.style.width = '100%';
     }
 });
 
@@ -317,12 +324,21 @@ function renderPhoto() {
     }
     const p = list[photoIndex];
     const isVideo = /\.(mp4|webm|mov|ogg|m4v)(\?|$)/i.test(p.src || '');
+    const plate = [p.date, p.place].filter(Boolean).join(' · ');
+    const plateHtml = plate
+        ? `<div class="photo-plate"><span>${plate}</span><span class="plate-seq">${photoIndex + 1} / ${list.length}</span></div>`
+        : `<div class="photo-plate"><span class="plate-seq">${photoIndex + 1} / ${list.length}</span></div>`;
     stage.innerHTML = isVideo
-        ? `<div class="photo-frame is-loading"><video src="${p.src}" controls playsinline loop muted></video></div>`
-        : `<div class="photo-frame is-loading"><img src="${p.src}" alt="回忆" loading="lazy" /></div>`;
+        ? `<div class="photo-frame is-loading"><video src="${p.src}" controls playsinline loop muted></video>${plateHtml}</div>`
+        : `<div class="photo-frame is-loading is-revealing"><img src="${p.src}" alt="回忆" loading="lazy" />${plateHtml}</div>`;
     caption.textContent = p.caption || '';
 
     const frame = stage.querySelector('.photo-frame');
+    if (frame) {
+        frame.addEventListener('animationend', (e) => {
+            if (e.animationName === 'curtainReveal') frame.classList.remove('is-revealing');
+        });
+    }
     const img = stage.querySelector('img');
     const video = stage.querySelector('video');
     if (img) {

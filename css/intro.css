@@ -15,7 +15,11 @@
   transition: opacity 0.9s ease;
 }
 
-#intro-overlay.is-leaving { opacity: 0; pointer-events: none; }
+/* 离场：文字先走，玫瑰在背景里多留 0.6s 慢融（情绪缓冲） */
+#intro-overlay.is-leaving { pointer-events: none; }
+#intro-overlay.is-leaving .intro-copy { opacity: 0; transition: opacity 0.6s ease; }
+#intro-overlay.is-leaving .intro-rose img { opacity: 0; transition: opacity 1.4s ease; }
+#intro-overlay.is-leaving .intro-music { opacity: 0; transition: opacity 0.4s ease; }
 #intro-overlay.is-hidden { display: none; }
 
 /* 开场期间隐藏主内容与母版音乐按钮，进入后再显示 */

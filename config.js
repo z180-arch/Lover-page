@@ -8,6 +8,21 @@ const CONFIG = {
     // 浏览器标签页标题
     pageTitle: "和你一起玩 💕",
 
+    // —— 第一屏开场（产品化：换人只改这里）——
+    intro: {
+        title: "我们的小小世界",
+        subtitle: "A little world, just for us.",
+        enterBtn: "进　入"
+    },
+
+    // —— 主题层（产品化：视觉参数全部可换）——
+    theme: {
+        gradient: ["#f7ece2", "#f3d5cb", "#f7ddc0", "#f2e6d9"],  // mesh gradient 四色
+        rose: "./assets/art/redoute-gallica-bloom.webp",          // 第一屏主视觉
+        petalColors: ["#dda3ab", "#c4777f"],                      // 花瓣双色
+        motionSpeed: 700                                          // 渐变呼吸速率（越小越慢）
+    },
+
     // 首页最上方的英文手写标题（母版原样）。
     // 想带上对方名字就填，比如 "Mia"，会显示成 “Mia, my love...”；留空则只显示 “My love...”
     valentineName: "",
@@ -116,6 +131,7 @@ const CONFIG = {
 
     // —— 风景照片（免费可商用 Unsplash 素材，已下载到本地 ./assets/photos/）——
     // 想换成自己的图，把文件放进 assets/photos 并改这里的 src / caption 即可。
+    // 可选字段：date / place（美术馆展签用，不填则不显示该栏）
     photos: [
         { src: "./assets/photos/holographic-src.jpg", caption: "第一张，先放在这里。" },
         { src: "./assets/photos/landscape-01.jpg", caption: "看到好看的天，第一反应是想发给你。" },

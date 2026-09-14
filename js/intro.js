@@ -11,9 +11,12 @@ const MeshGradient = MeshGradientModule && MeshGradientModule.default
   ? MeshGradientModule.default
   : MeshGradientModule;
 
+/* 主题来自 config.theme（产品化：换主题只改 JSON） */
+const CFG = window.VALENTINE_CONFIG || {};
 const PALETTE = {
-  colors: ['#f7ece2', '#f3d5cb', '#f7ddc0', '#f2e6d9'],
+  colors: (CFG.theme && CFG.theme.gradient) || ['#f7ece2', '#f3d5cb', '#f7ddc0', '#f2e6d9'],
   amp: 130,
+  speed: (CFG.theme && CFG.theme.motionSpeed) || 700,
 };
 
 let gradient = null;
@@ -33,7 +36,7 @@ function initGradient() {
     return false;
   }
 
-  const SPEED = 700; // u_time 单位/秒
+  const SPEED = PALETTE.speed; // u_time 单位/秒
   function whenReady(cb) {
     if (gradient.mesh && gradient.minigl) return cb();
     setTimeout(() => whenReady(cb), 60);
@@ -94,7 +97,7 @@ function hide() {
     overlay.classList.add('is-hidden');
     document.body.classList.remove('intro-active');
     if (window.appState) window.appState.setState({ currentStep: 1 });
-  }, 900);
+  }, 1500);
 }
 
 function init() {
@@ -105,8 +108,8 @@ function init() {
   }
 
   const roseImg = overlay.querySelector('.intro-rose img');
-  if (roseImg && !roseImg.complete) {
-    /* 版画未加载时不阻塞文案，只是让玫瑰淡入自然推迟 */
+  if (roseImg && CFG.theme && CFG.theme.rose) {
+    roseImg.src = CFG.theme.rose;
   }
 
   musicBtn = overlay.querySelector('.intro-music');
