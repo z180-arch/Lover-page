@@ -5,7 +5,7 @@
 - [x] 章节旅程数据化、空章节自动跳过
 - [x] 照片展签（date/location/description/thumb）
 - [x] 信件系统（含语音播放）
-- [ ] 剩余硬编码迁移（架构评审清单）：Sound.tick 频率/增益 → `sound.tick`；花瓣与迸发数量 → `theme.motion`；开场/BGM/语音淡入淡出时长 → `motion/sound.fadeMs`；照片与语音占位文案 → content；分享成功文案 → `ending.shareCopiedText`；validateConfig 旧粉默认值清除；mesh `amp` → `theme.motion.gradientAmp`
+- [x] 剩余硬编码迁移（V1 完成）：Sound.tick 频率/增益 → `sound.tick`；花瓣与迸发数量 → `theme.motion`；开场/BGM/语音淡入淡出时长 → `motion/sound.fadeMs`；照片与语音占位文案 → content；分享成功文案 → `ending.shareCopiedText`；validateConfig 旧粉默认值清除；mesh `amp` → `theme.motion.gradientAmp`
 - [ ] 照片全息卡片（`photos[].style:"holo"`）：参考 LerSent001/holo-card（MIT）输出自包含 HTML 嵌入，或按 pokemon-cards-css（GPL-3.0，仅借鉴）手写 tilt+blend
 - [ ] 主题预设包（warm-paper 之外的 1-2 套：如 night-rose、ink-garden）
 - [ ] 字体子集化：按 config 实际字符生成 Noto Serif SC 子集 webfont（解决 Windows/安卓宋体渲染）
