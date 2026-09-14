@@ -523,3 +523,15 @@ h2 {
     }
     .surprise-text { transition: none; }
 }
+
+/* GLightbox caption 可读性覆盖（v3 的描述元素类名是 .gslide-desc） */
+.glightbox-container .gslide-desc {
+    font-family: 'Songti SC', 'STSong', 'Noto Serif SC', 'SimSun', 'Georgia', serif;
+    font-size: 0.95rem !important;
+    letter-spacing: 0.08em;
+    color: #fdf7f1 !important;
+    text-align: center;
+    line-height: 1.8;
+    background: linear-gradient(180deg, rgba(30,20,16,0) 0%, rgba(30,20,16,0.62) 40%) !important;
+    padding: 26px 16px 14px !important;
+}

@@ -334,10 +334,24 @@ function renderPhoto() {
         });
         if (photoLightbox) {
             frame.classList.add('is-clickable');
-            frame.addEventListener('click', () => {
-                photoLightbox.openAt(imageIndexAmongPhotos(photoIndex));
+            frame.setAttribute('role', 'button');
+            frame.setAttribute('tabindex', '0');
+            frame.setAttribute('aria-label', '全屏查看这张照片');
+            const openLb = () => photoLightbox.openAt(imageIndexAmongPhotos(photoIndex));
+            frame.addEventListener('click', openLb);
+            frame.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLb(); }
             });
         }
+        // 相邻照片预取，切上一张/下一张时不用等网络
+        const list = config.photos || [];
+        [photoIndex + 1, photoIndex - 1].forEach(i => {
+            const p = list[(i + list.length) % list.length];
+            if (p && !/\.(mp4|webm|mov|ogg|m4v)(\?|$)/i.test(p.src || '')) {
+                const im = new Image();
+                im.src = p.src;
+            }
+        });
     }
     if (video) {
         video.muted = true;
