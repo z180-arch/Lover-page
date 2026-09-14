@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- CUSTOMIZE: Browser tab title（由 config.js 的 pageTitle 覆盖） -->
+    <title>和你一起玩 💕</title>
+    <!-- Google Fonts（母版原有字体，保留） -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Poppins:wght@300;400;600&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Styles（母版样式表，保留；新游戏样式追加在末尾） -->
+    <link rel="stylesheet" href="styles.css" />
+    <!-- 第一屏粒子玫瑰开场样式 -->
+    <link rel="stylesheet" href="css/particle-intro.css" />
+  </head>
+  <body>
+    <!-- Floating Background Elements（母版浮动爱心/熊，保留，由 JS 生成） -->
+    <div class="floating-elements" aria-hidden="true"></div>
+
+    <!-- Main Content Container（母版白色圆角卡片，保留） -->
+    <main class="container">
+      <h1 id="valentineTitle"></h1>
+
+      <!-- Music Player（母版音乐控件，保留；音乐源改为本地 ./assets/audio/bgm.mp3） -->
+      <div id="musicControls" class="music-controls">
+        <button
+          id="musicToggle"
+          class="music-btn"
+          aria-label="Toggle Background Music"
+        >
+          🎵 放音乐
+        </button>
+        <audio id="bgMusic" loop>
+          <source id="musicSource" type="audio/mpeg" />
+          Your browser does not support the audio element.
+        </audio>
+      </div>
+
+      <!-- Step 1 — 首页（h1 为母版英文手写标题，在最上方；下面是中文标题与副标题） -->
+      <section class="question-section" id="question1">
+        <h2 id="homeTitle"></h2>
+        <p class="home-sub" id="homeSubtitle"></p>
+        <div class="button-group">
+          <button class="cute-btn" onclick="showNextQuestion(2)" id="homeStartBtn"></button>
+        </div>
+      </section>
+
+      <!-- Step 2 — 小游戏1：默契测试（沿用 Question + Button UI） -->
+      <section class="question-section hidden" id="question2">
+        <h2 id="quizText"></h2>
+        <div class="option-group" id="quizOptions"></div>
+        <p class="game-feedback" id="quizFeedback"></p>
+        <div class="button-group">
+          <button class="cute-btn hidden" onclick="showNextQuestion(3)" id="quizNextBtn"></button>
+        </div>
+      </section>
+
+      <!-- Step 3 — 小游戏2：Love Meter（母版结构完整保留） -->
+      <section class="question-section hidden" id="question3">
+        <h2 id="meterText"></h2>
+        <div class="love-meter">
+          <label for="loveMeter" class="sr-only">Love Meter</label>
+          <input
+            type="range"
+            min="0"
+            max="10000"
+            value="100"
+            class="slider"
+            id="loveMeter"
+          />
+          <p>
+            <span class="love-value-container"
+              ><span id="startText"></span> (<span id="loveValue">100</span
+              >%)</span
+            >
+            <span id="extraLove" class="hidden"></span>
+          </p>
+        </div>
+        <button class="cute-btn" onclick="finishMeter()" id="meterNextBtn"></button>
+      </section>
+
+      <!-- Step 4 — 小游戏3：随机问题 -->
+      <section class="question-section hidden" id="question4">
+        <h2 class="random-text" id="randomQuestionText"></h2>
+        <div class="button-group">
+          <button class="cute-btn" onclick="nextRandomQuestion()" id="questionAgainBtn"></button>
+          <button class="cute-btn" onclick="showNextQuestion(5)" id="questionNextBtn"></button>
+        </div>
+      </section>
+
+      <!-- Step 5 — 小游戏4：随机小任务 -->
+      <section class="question-section hidden" id="question5">
+        <h2 id="smallThingsTitle"></h2>
+        <p class="random-text" id="smallThingText"></p>
+        <div class="button-group">
+          <button class="cute-btn" onclick="nextSmallThing()" id="smallThingAgainBtn"></button>
+          <button class="cute-btn" onclick="showNextQuestion(6)" id="smallThingNextBtn"></button>
+        </div>
+      </section>
+
+      <!-- Step 6 — 照片（母版无此区域，使用母版已有 CSS 变量做最简单展示） -->
+      <section class="question-section hidden" id="question6">
+        <div class="photo-stage" id="photoStage"></div>
+        <p class="photo-caption" id="photoCaption"></p>
+        <div class="button-group">
+          <button class="cute-btn" onclick="prevPhoto()" id="photoPrevBtn">上一张</button>
+          <button class="cute-btn" onclick="showNextQuestion(7)" id="photoNextBtn"></button>
+        </div>
+      </section>
+
+      <!-- Step 7 — 随机惊喜 -->
+      <section class="question-section hidden" id="question7">
+        <div class="button-group">
+          <button class="cute-btn surprise-gift" onclick="nextSurprise()" id="surpriseBtn"></button>
+        </div>
+        <p class="game-feedback surprise-text" id="surpriseText"></p>
+        <div class="button-group">
+          <button class="cute-btn hidden" onclick="nextSurprise()" id="surpriseAgainBtn"></button>
+          <button class="cute-btn hidden" onclick="celebrate()" id="surpriseNextBtn"></button>
+        </div>
+      </section>
+
+      <!-- 结束页（母版 Celebration，保留爱心爆炸庆祝） -->
+      <section class="celebration hidden" id="celebration">
+        <h2 id="celebrationTitle"></h2>
+        <p class="celebration-text" id="celebrationMessage"></p>
+        <p class="celebration-text" id="celebrationEmojis"></p>
+        <div class="button-group">
+          <button class="cute-btn" onclick="replayGame()" id="replayBtn"></button>
+        </div>
+      </section>
+
+      <!-- Share Button（母版原有，保留） -->
+      <div class="share-container">
+        <button
+          id="shareBtn"
+          class="share-btn"
+          aria-label="Copy shareable link"
+        >
+          🔗 复制本页链接
+        </button>
+      </div>
+    </main>
+
+    <!-- Scripts（母版加载顺序，保持不变） -->
+    <script src="config.js"></script>
+    <script src="config-system.js"></script>
+    <script src="state.js"></script>
+    <script src="theme.js"></script>
+    <script src="script.js"></script>
+    <!-- 第一屏粒子玫瑰开场（全局 Three.js UMD，纯 script 标签，无构建） -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="js/particle-intro.js"></script>
+  </body>
+</html>
