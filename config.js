@@ -25,6 +25,15 @@ const CONFIG = {
     // 浏览器标签页标题
     pageTitle: "和你一起玩",
 
+    // —— Person Schema（她/他是谁：未来编辑器的“人物”表单）——
+    person: {
+        name: "",           // 全名（可选）
+        nickname: "",       // 昵称（优先用于标题，如 “Mia, my love...”）
+        avatar: "",         // 头像/人物照片（预留：全息卡片）
+        birthday: "",       // 预留
+        relationship: ""    // 预留
+    },
+
     // —— Theme Schema（视觉层：换主题 = 换这个对象）——
     theme: {
         colors: {
@@ -43,7 +52,12 @@ const CONFIG = {
             enterBtn: "进　入"
         },
         motion: {
-            gradientSpeed: 700          // 渐变呼吸速率（u_time 单位/秒，越小越慢）
+            gradientSpeed: 700,         // 渐变呼吸速率（u_time 单位/秒，越小越慢）
+            gradientAmp: 130,           // 渐变形变幅度
+            petalCount: 9,              // 飘落花瓣数（移动端自动减半）
+            petalFallDuration: [12, 22],// 花瓣下落时长区间（秒）
+            burstCount: 24,             // 庆祝花瓣迸发数量
+            introFadeMs: 1500           // 开场离场总时长
         },
         components: {}                  // 预留：photoStyle / letterStyle / buttonStyle
     },
@@ -74,6 +88,7 @@ const CONFIG = {
         text: "今天的默契有多少？",   // 拖动滑块，往右拖到底
         startText: "默契值",
         doneText: "今天也算不错。",   // 点“下一个”前的小结
+        doneDelayMs: 900,             // 小结停留时长
         nextBtn: "下一个"
     },
     // 拖过不同数值时出现的趣味文案（母版机制：>100 / >1000 / >5000）
@@ -179,6 +194,10 @@ const CONFIG = {
     // letters：{ date, title, content, image?, audio? }，为空数组时该章自动跳过
     // memories：{ date, text, photo } 预留（时间轴模块）
     story: {
+        // timeline：{ date, title, text, photo } 预留（时间轴模块）
+        timeline: [],
+        // promises：{ date, text } 预留（约定清单模块）
+        promises: [],
         letters: [
             {
                 date: "",
@@ -193,12 +212,22 @@ const CONFIG = {
     letterAgainBtn: "下一封",
     letterNextBtn: "下一个",
 
+    // —— 照片文案（占位/错误，可自定义）——
+    photoTexts: {
+        empty: "还没有放进照片。",
+        error: "这张照片暂时加载不出来。",
+        videoError: "这段视频暂时加载不出来。"
+    },
+
     // —— 声音 Schema（所有声音行为读这里）——
     sound: {
         bgm: "",            // 留空 = 沿用 music.musicUrl
         volume: 0.5,
         uiTick: true,       // 章节切换的极轻提示音（Web Audio 合成，无素材）
-        voiceEnabled: true  // 信件语音播放器开关
+        tick: { freqs: [1244, 1866], gain: 0.045, decayMs: 220 },  // 提示音音色
+        fadeMs: { bgmIn: 1400, bgmOut: 500, voiceIn: 800, voiceOut: 400 },  // 音量渐变时长
+        voiceEnabled: true, // 信件语音播放器开关
+        voiceTexts: { play: "播放语音", pause: "暂停", error: "暂时无法播放" }
     },
 
     // —— 随机惊喜（点礼物盒随机出一句）——

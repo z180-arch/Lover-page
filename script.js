@@ -8,7 +8,7 @@ function validateConfig() {
     // Check required fields
     if (!config.pageTitle) {
         warnings.push("pageTitle is not set! Using default.");
-        config.pageTitle = "和你一起玩 💕";
+        config.pageTitle = "和你一起玩";
     }
 
     // Validate colors
@@ -41,11 +41,11 @@ function validateConfig() {
 // Default color values
 function getDefaultColor(key) {
     const defaults = {
-        backgroundStart: "#ffafbd",
-        backgroundEnd: "#ffc3a0",
-        buttonBackground: "#ff6b6b",
-        buttonHover: "#ff8787",
-        textColor: "#ff4757"
+        backgroundStart: "#f7ece2",
+        backgroundEnd: "#f3d5cb",
+        buttonBackground: "#a8544f",
+        buttonHover: "#8f403c",
+        textColor: "#4a3a33"
     };
     return defaults[key];
 }
@@ -70,7 +70,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // 首页：h1 为母版英文手写标题（最上方），h2 为中文标题，副标题在其下
     const enTitle = (config.home && config.home.enTitle) || 'my love...';
-    const enPrefix = config.valentineName ? `${config.valentineName}, ` : '';
+    const nick = (config.person && (config.person.nickname || config.person.name)) || config.valentineName;
+    const enPrefix = nick ? `${nick}, ` : '';
     document.getElementById('valentineTitle').textContent = `${enPrefix}${enTitle}`;
     document.getElementById('homeTitle').textContent = config.home.title;
     document.getElementById('homeSubtitle').textContent = config.home.subtitle;
@@ -142,12 +143,14 @@ function createFloatingElements() {
     container.innerHTML = '';
 
     // 极少量花瓣，慢速飘落；纯 CSS 形状，不用 emoji
-    const PETAL_COUNT = window.innerWidth < 640 ? 5 : 9;
+    const motion = (config.theme && config.theme.motion) || {};
+    const fallRange = motion.petalFallDuration || [12, 22];
+    const PETAL_COUNT = Math.round((window.innerWidth < 640 ? 0.5 : 1) * (motion.petalCount || 9));
     for (let i = 0; i < PETAL_COUNT; i++) {
         const petal = document.createElement('div');
         petal.className = 'petal';
         petal.style.left = Math.random() * 100 + 'vw';
-        petal.style.setProperty('--fall-duration', 12 + Math.random() * 10 + 's');
+        petal.style.setProperty('--fall-duration', fallRange[0] + Math.random() * (fallRange[1] - fallRange[0]) + 's');
         petal.style.setProperty('--fall-delay', Math.random() * 14 + 's');
         petal.style.setProperty('--fall-distance', (Math.random() * 90 - 45) + 'px');
         container.appendChild(petal);
@@ -263,7 +266,8 @@ function finishMeter() {
         fb.classList.add('meter-done');
         extra.parentElement.appendChild(fb);
     }
-    setTimeout(() => showNextQuestion(4), 900);
+    setTimeout(() => showNextQuestion(4),
+        (config.meter && config.meter.doneDelayMs) || 900);
 }
 
 // ============================================================
@@ -334,7 +338,7 @@ function renderPhoto() {
     const caption = document.getElementById('photoCaption');
     const list = config.photos || [];
     if (!list.length) {
-        stage.innerHTML = '<div class="photo-frame"><div class="photo-error">还没有放进照片。</div></div>';
+        stage.innerHTML = '<div class="photo-frame"><div class="photo-error">' + (config.photoTexts && config.photoTexts.empty || '还没有放进照片。') + '</div></div>';
         caption.textContent = '';
         return;
     }
@@ -362,7 +366,7 @@ function renderPhoto() {
         img.addEventListener('load', () => frame.classList.remove('is-loading'));
         img.addEventListener('error', () => {
             frame.classList.remove('is-loading');
-            frame.innerHTML = '<div class="photo-error">这张照片暂时加载不出来。</div>';
+            frame.innerHTML = '<div class="photo-error">' + (config.photoTexts && config.photoTexts.error || '这张照片暂时加载不出来。') + '</div>';
         });
         if (photoLightbox) {
             frame.classList.add('is-clickable');
@@ -390,7 +394,7 @@ function renderPhoto() {
         video.addEventListener('loadeddata', () => frame.classList.remove('is-loading'));
         video.addEventListener('error', () => {
             frame.classList.remove('is-loading');
-            frame.innerHTML = '<div class="photo-error">这段视频暂时加载不出来。</div>';
+            frame.innerHTML = '<div class="photo-error">' + (config.photoTexts && config.photoTexts.videoError || '这段视频暂时加载不出来。') + '</div>';
         });
         const pp = video.play();
         if (pp && pp.catch) pp.catch(() => {});
@@ -423,9 +427,9 @@ function renderLetter() {
     const meta = p.date ? `<div class="letter-date">${p.date}</div>` : '';
     const img = p.image ? `<img src="${p.image}" alt="" loading="lazy" />` : '';
     const audio = (p.audio && config.sound && config.sound.voiceEnabled !== false) ? `
-        <button class="voice-btn" type="button" data-src="${p.audio}" aria-label="播放语音">
+        <button class="voice-btn" type="button" data-src="${p.audio}" aria-label="${vt.play}">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-          <span>播放语音</span>
+          <span>${vt.play}</span>
         </button>` : '';
 
     stage.innerHTML = `
@@ -442,6 +446,8 @@ function renderLetter() {
         document.getElementById('letterAgainBtn').classList.remove('hidden');
     }
 
+    const vt = Object.assign({ play: '播放语音', pause: '暂停', error: '暂时无法播放' },
+        (config.sound && config.sound.voiceTexts) || {});
     const vb = stage.querySelector('.voice-btn');
     if (vb) {
         vb.addEventListener('click', () => toggleVoice(vb, p.audio));
@@ -462,8 +468,9 @@ function nextLetter() {
 
 /* 语音播放：原生 <audio> + 音量渐入，无依赖 */
 function toggleVoice(btn, src) {
+    const fade = (config.sound && config.sound.fadeMs) || {};
     if (letterAudio && !letterAudio.paused) {
-        fadeVolume(letterAudio, 0, 400, () => {
+        fadeVolume(letterAudio, 0, fade.voiceOut || 400, () => {
             letterAudio.pause();
             resetVoiceBtn();
         });
@@ -473,10 +480,15 @@ function toggleVoice(btn, src) {
     letterAudio = new Audio(src);
     letterAudio.volume = 0;
     letterAudio.play().then(() => {
-        fadeVolume(letterAudio, config.music.volume || 0.6, 800);
+        fadeVolume(letterAudio, (config.sound && config.sound.volume) || config.music.volume || 0.6, fade.voiceIn || 800);
         btn.classList.add('is-playing');
         btn.querySelector('span').textContent = '暂停';
         letterAudio.onended = resetVoiceBtn;
+    letterAudio.onerror = () => {
+        resetVoiceBtn();
+        const sp = btn.querySelector('span');
+        if (sp) sp.textContent = vt.error;
+    };
     }).catch(() => {
         btn.querySelector('span').textContent = '暂时无法播放';
     });
@@ -520,13 +532,14 @@ const Sound = {
         const ctx = this.ensure();
         if (!ctx) return;
         const t = ctx.currentTime;
-        [[1244, 0], [1866, 0.06]].forEach(([freq, delay]) => {
+        const spec = (config.sound && config.sound.tick) || { freqs: [1244, 1866], gain: 0.045 };
+        [[spec.freqs[0], 0], [spec.freqs[1], 0.06]].forEach(([freq, delay]) => {
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = 'sine';
             osc.frequency.value = freq;
             gain.gain.setValueAtTime(0.0001, t + delay);
-            gain.gain.exponentialRampToValueAtTime(0.045, t + delay + 0.012);
+            gain.gain.exponentialRampToValueAtTime(spec.gain, t + delay + 0.012);
             gain.gain.exponentialRampToValueAtTime(0.0001, t + delay + 0.22);
             osc.connect(gain).connect(ctx.destination);
             osc.start(t + delay);
@@ -565,7 +578,8 @@ function celebrate() {
 function createHeartExplosion() {
     const container = document.querySelector('.floating-elements');
     if (!container) return;
-    for (let i = 0; i < 24; i++) {
+    const burstCount = (config.theme && config.theme.motion && config.theme.motion.burstCount) || 24;
+    for (let i = 0; i < burstCount; i++) {
         const petal = document.createElement('div');
         petal.className = 'petal is-burst';
         petal.style.left = 20 + Math.random() * 60 + 'vw';
@@ -629,8 +643,9 @@ function setupMusicPlayer() {
 
     // 播放/暂停都走音量渐变，避免生硬
     const targetVol = (config.sound && config.sound.volume) || config.music.volume || 0.5;
-    bgMusic.addEventListener('play', () => fadeVolume(bgMusic, targetVol, 1400));
-    bgMusic.addEventListener('pause', () => fadeVolume(bgMusic, 0, 500));
+    const bgmFade = (config.sound && config.sound.fadeMs) || {};
+    bgMusic.addEventListener('play', () => fadeVolume(bgMusic, targetVol, bgmFade.bgmIn || 1400));
+    bgMusic.addEventListener('pause', () => fadeVolume(bgMusic, 0, bgmFade.bgmOut || 500));
 
     // 尝试自动播放
     if (config.music.autoplay) {
@@ -676,7 +691,7 @@ function setupShareButton() {
     shareBtn.addEventListener('click', () => {
         const fallback = () => {
             const originalText = shareBtn.textContent;
-            shareBtn.textContent = "链接已复制 ❤️";
+            shareBtn.textContent = (config.ending && config.ending.shareCopiedText) || '链接已复制';
             setTimeout(() => { shareBtn.textContent = originalText; }, 2000);
         };
         if (window.ValentineConfig && window.ValentineConfig.copyShareLink) {

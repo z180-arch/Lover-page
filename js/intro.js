@@ -16,8 +16,9 @@ const CFG = window.VALENTINE_CONFIG || {};
 const T = CFG.theme || {};
 const PALETTE = {
   colors: (T.colors && T.colors.gradient) || T.gradient || ['#f7ece2', '#f3d5cb', '#f7ddc0', '#f2e6d9'],
-  amp: 130,
+  amp: (T.motion && T.motion.gradientAmp) || 130,
   speed: (T.motion && T.motion.gradientSpeed) || T.motionSpeed || 700,
+  fadeMs: (T.motion && T.motion.introFadeMs) || 1500,
 };
 
 let gradient = null;
@@ -30,7 +31,7 @@ function initGradient() {
   try {
     gradient = new MeshGradient();
     gradient.initGradient('#bg-canvas', PALETTE.colors);
-    gradient.amp = PALETTE.amp;
+    if (PALETTE.amp) gradient.amp = PALETTE.amp;
   } catch (err) {
     console.warn('[intro] WebGL 不可用，跳过动态背景：', err);
     gradient = null;
@@ -98,7 +99,7 @@ function hide() {
     overlay.classList.add('is-hidden');
     document.body.classList.remove('intro-active');
     if (window.appState) window.appState.setState({ currentStep: 1 });
-  }, 1500);
+  }, PALETTE.fadeMs);
 }
 
 function init() {
@@ -109,8 +110,12 @@ function init() {
   }
 
   const roseImg = overlay.querySelector('.intro-rose img');
-  if (roseImg && T.hero && T.hero.rose) {
-    roseImg.src = T.hero.rose;
+  const roseSrc = T.hero && T.hero.rose;
+  if (roseImg && roseSrc) {
+    roseImg.src = roseSrc;
+  } else if (roseImg) {
+    // 主题未提供主视觉（如深色背景主题）：隐藏玫瑰舞台
+    roseImg.closest('.intro-rose').style.display = 'none';
   }
 
   musicBtn = overlay.querySelector('.intro-music');
