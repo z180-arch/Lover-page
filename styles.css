@@ -1,251 +1,475 @@
-/* CSS Variables - Will be updated by JavaScript */
-:root {
-    /* Colors */
-    --background-color-1: #ffafbd;
-    --background-color-2: #ffc3a0;
-    --button-color: #ff6b6b;
-    --button-hover: #ff8787;
-    --text-color: #ff4757;
+/* styles.css — Lover-page 全局视觉系统
+ * 与第一屏同一世界：暖奶油底 + site 级 mesh-gradient canvas + 衬线排版 + 克制玫瑰色强调
+ * 变量名沿用母版机制（theme.js 从 config.js 注入），仅语义更新：
+ *   --background-color-1/2 = 备用暖底（canvas 不可用时）
+ *   --button-color / --button-hover = 玫瑰强调色
+ *   --text-color = 墨色 */
 
-    /* Animations */
+:root {
+    --background-color-1: #f7ece2;
+    --background-color-2: #f3d5cb;
+    --button-color: #a8544f;
+    --button-hover: #8f403c;
+    --text-color: #4a3a33;
+    --ink-soft: rgba(74, 58, 51, 0.62);
+    --hairline: rgba(74, 58, 51, 0.14);
+    --panel: rgba(255, 251, 246, 0.86);
+
     --float-duration: 15s;
     --float-distance: 50px;
     --bounce-speed: 0.5s;
     --heart-explosion-size: 1.5;
 }
 
+* { box-sizing: border-box; }
+
 body {
     margin: 0;
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(135deg, var(--background-color-1), var(--background-color-2));
-    font-family: 'Poppins', Arial, sans-serif;
+    background: linear-gradient(160deg, var(--background-color-1), var(--background-color-2));
+    font-family: 'Songti SC', 'STSong', 'Noto Serif SC', 'Source Han Serif SC',
+      'SimSun', 'Georgia', serif;
+    color: var(--text-color);
     overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------- site 级动态背景（第一屏与后续页面共用） ---------- */
+/* 注意：不要给 canvas 设 z-index —— z:0 的兄弟层会隔离后续 multiply 混合。
+   层叠靠 DOM 顺序：canvas → vignette → petals → container → intro overlay */
+#bg-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* 极轻暗角，统一氛围 */
+.vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      ellipse 120% 90% at 50% 46%,
+      transparent 62%,
+      rgba(60, 40, 30, 0.05) 100%
+    );
 }
 
 .container {
-    background: rgba(255, 255, 255, 0.9);
-    padding: 2rem;
-    border-radius: 20px;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    position: relative;
+    z-index: 3; /* 低于 .music-controls(100)；开场 overlay 保持 z-auto 以免隔离混合 */
+    background: var(--panel);
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    padding: 2.2rem;
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(80, 50, 35, 0.10);
     text-align: center;
     width: 90%;
-    max-width: 600px;
+    max-width: 560px;
     margin: 20px;
-    position: relative;
-    z-index: 2;
 }
 
+/* ---------- 浮落花瓣（替代母版 emoji 漂浮元素） ---------- */
 .floating-elements {
     position: fixed;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     pointer-events: none;
-    z-index: 1;
+    overflow: hidden;
 }
 
-.heart, .bear {
+.petal {
     position: absolute;
-    font-size: 2rem;
-    animation: float var(--float-duration) linear infinite;
+    top: -6vh;
+    width: 13px;
+    height: 13px;
+    background: linear-gradient(135deg, #dda3ab, #c4777f);
+    border-radius: 90% 12% 90% 12%;
+    opacity: 0;
+    animation: petalFall var(--fall-duration, 14s) linear var(--fall-delay, 0s) infinite;
 }
 
-@keyframes float {
-    0% {
-        transform: translateY(100vh) translateX(0);
-    }
-    100% {
-        transform: translateY(-100px) translateX(var(--float-distance));
-    }
+.petal.is-burst {
+    position: absolute;
+    animation: petalBurst var(--burst-duration, 2.6s) ease-out var(--fall-delay, 0s) forwards;
 }
 
+@keyframes petalFall {
+    0%   { opacity: 0; transform: translate3d(0, -6vh, 0) rotate(0deg); }
+    8%   { opacity: 0.5; }
+    92%  { opacity: 0.4; }
+    100% { opacity: 0; transform: translate3d(var(--fall-distance, 40px), 108vh, 0) rotate(300deg); }
+}
+
+@keyframes petalBurst {
+    0%   { opacity: 0.9; transform: translate3d(0, 0, 0) rotate(0deg) scale(var(--heart-explosion-size, 1.5)); }
+    100% { opacity: 0; transform: translate3d(var(--fall-distance, 40px), 60vh, 0) rotate(260deg) scale(0.4); }
+}
+
+/* ---------- 排版 ---------- */
+h1 {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(1.7rem, 2.6vw, 2.2rem);
+    color: var(--text-color);
+    margin: 0 0 0.6rem;
+    letter-spacing: 0.04em;
+}
+
+h2 {
+    font-weight: 400;
+    font-size: clamp(1.15rem, 2vw, 1.45rem);
+    color: var(--text-color);
+    margin: 0 0 1.4rem;
+    letter-spacing: 0.12em;
+    line-height: 1.7;
+}
+
+.home-sub {
+    color: var(--ink-soft);
+    font-weight: 300;
+    font-size: 0.95rem;
+    margin: -0.6rem 0 1.4rem;
+    letter-spacing: 0.08em;
+}
+
+/* ---------- 按钮 ---------- */
 .button-group {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     gap: 10px;
-    margin: 20px 0;
+    margin: 20px 0 6px;
 }
 
 .cute-btn {
     background: var(--button-color);
-    border: none;
-    padding: 12px 24px;
-    border-radius: 30px;
-    color: white;
-    font-size: 1.1rem;
-    font-weight: 600;
+    border: 1px solid transparent;
+    padding: 12px 26px;
+    border-radius: 10px;
+    color: #fdf7f1;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-indent: 0.14em;
     cursor: pointer;
-    transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s ease, background 0.3s ease, box-shadow 0.3s ease;
     min-width: 120px;
-    min-height: 48px; /* Accessibility: minimum tap target size */
+    min-height: 48px; /* 触摸目标下限 */
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-.cute-btn:hover, .cute-btn:focus {
-    transform: scale(1.05);
+.cute-btn:hover, .cute-btn:focus-visible {
+    transform: translateY(-1px);
     background: var(--button-hover);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 16px rgba(90, 45, 40, 0.22);
     outline: none;
 }
 
-.cute-btn:active {
-    transform: scale(0.95);
+.cute-btn:active { transform: scale(0.97); }
+
+.cute-btn.hidden { display: none; }
+
+.hidden { display: none !important; }
+
+/* ---------- 默契测试选项 ---------- */
+.option-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 18px 0 10px;
 }
 
-.hidden {
-    display: none !important;
-}
-
-.secret-answer {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    opacity: 0.3;
-    transition: opacity 0.3s, transform 0.3s;
-    z-index: 10;
-}
-
-.secret-answer:hover, .secret-answer:focus-within {
-    opacity: 1;
-    transform: scale(1.1);
-}
-
-.secret-answer .cute-btn.special {
-    font-size: 0.8rem;
-    padding: 8px 16px;
-    min-width: auto;
-    min-height: auto;
-    background: rgba(255, 255, 255, 0.5);
+/* 选项默认细线描边，答对才填充强调色——避免一屏四块重色 */
+.option-btn {
+    width: 100%;
+    min-width: 0;
+    background: rgba(255, 251, 246, 0.6);
+    border: 1px solid rgba(74, 58, 51, 0.28);
     color: var(--text-color);
-    border: 1px dashed var(--text-color);
+}
+.option-btn:hover, .option-btn:focus-visible {
+    background: rgba(255, 251, 246, 0.92);
+    border-color: rgba(74, 58, 51, 0.45);
+    box-shadow: 0 4px 12px rgba(90, 45, 40, 0.10);
+}
+.option-btn:disabled { cursor: default; opacity: 0.7; }
+
+.option-btn.option-correct,
+.option-btn.option-correct:hover {
+    background: var(--button-color);
+    border-color: var(--button-color);
+    color: #fdf7f1;
+    box-shadow: 0 6px 16px rgba(90, 45, 40, 0.22);
+    transform: translateY(-1px);
+    opacity: 1;
+}
+.option-btn.option-wrong { opacity: 0.38; }
+
+/* ---------- 通用反馈 ---------- */
+.game-feedback {
+    min-height: 1.4em;
+    color: var(--button-color);
+    margin: 6px 0 4px;
+    line-height: 1.7;
+    letter-spacing: 0.06em;
 }
 
+/* ---------- Love Meter ---------- */
 .love-meter {
     width: 100%;
     margin: 30px 0;
 }
 
+.love-meter p {
+    font-family: 'Georgia', serif;
+    color: var(--text-color);
+    letter-spacing: 0.04em;
+}
+
 .slider {
     width: 100%;
-    height: 15px;
+    height: 22px;
     -webkit-appearance: none;
     appearance: none;
-    background: #eee;
+    background: transparent;
     outline: none;
-    border-radius: 10px;
+    cursor: pointer;
+}
+
+.slider::-webkit-slider-runnable-track {
+    height: 3px;
+    background: linear-gradient(90deg, rgba(168, 84, 79, 0.25), rgba(168, 84, 79, 0.65));
+    border-radius: 2px;
 }
 
 .slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 30px;
-    height: 30px;
+    width: 24px;
+    height: 24px;
+    margin-top: -10.5px;
     background: var(--button-color);
     cursor: pointer;
     border-radius: 50%;
-    border: 3px solid white;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    border: 3px solid #fdf7f1;
+    box-shadow: 0 3px 10px rgba(90, 45, 40, 0.3);
+    transition: transform 0.15s ease;
+}
+
+.slider::-webkit-slider-thumb:active { transform: scale(1.12); }
+
+.slider::-moz-range-track {
+    height: 3px;
+    background: linear-gradient(90deg, rgba(168, 84, 79, 0.25), rgba(168, 84, 79, 0.65));
+    border-radius: 2px;
 }
 
 .slider::-moz-range-thumb {
-    width: 30px;
-    height: 30px;
+    width: 20px;
+    height: 20px;
     background: var(--button-color);
     cursor: pointer;
     border-radius: 50%;
-    border: 3px solid white;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    border: 3px solid #fdf7f1;
+    box-shadow: 0 3px 10px rgba(90, 45, 40, 0.3);
+}
+
+.slider:focus-visible {
+    outline: 1.5px solid rgba(74, 58, 51, 0.55);
+    outline-offset: 4px;
 }
 
 #loveValue {
     font-weight: 700;
-    color: var(--text-color);
+    color: var(--button-color);
 }
 
 #extraLove {
     display: block;
     margin-top: 10px;
     font-weight: 600;
-    color: var(--text-color);
-    animation: bounce 0.5s infinite alternate;
+    color: var(--button-color);
+    animation: softBounce 0.6s ease infinite alternate;
 }
 
-@keyframes bounce {
+@keyframes softBounce {
     from { transform: scale(1); }
-    to { transform: scale(1.1); }
+    to   { transform: scale(1.06); }
 }
 
-h1 {
-    font-family: 'Dancing Script', cursive;
-    font-size: 3rem;
+#extraLove.super-love { font-size: 1.15rem; }
+.meter-done { color: var(--text-color); margin-top: 8px; letter-spacing: 0.06em; }
+
+/* ---------- 随机问题 / 小任务 ---------- */
+.random-text {
+    font-size: clamp(1.05rem, 2.4vw, 1.3rem);
     color: var(--text-color);
-    margin-bottom: 1.5rem;
+    line-height: 2;
+    margin: 18px 8px;
+    letter-spacing: 0.05em;
+    min-height: 2em;
 }
 
-h2 {
-    font-size: 1.5rem;
+.random-text.is-swapping {
+    animation: textSwap 0.55s ease both;
+}
+
+@keyframes textSwap {
+    0%   { opacity: 0; transform: translateY(8px); filter: blur(2px); }
+    100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+/* ---------- 照片 ---------- */
+.photo-stage {
+    margin: 16px auto 10px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.photo-frame {
+    position: relative;
+    width: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #efe4da;
+    box-shadow: 0 10px 30px rgba(80, 50, 35, 0.16);
+}
+
+.photo-frame img,
+.photo-frame video {
+    display: block;
+    width: 100%;
+    max-height: 50vh;
+    object-fit: cover;
+}
+
+.photo-frame.is-loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.55) 50%, transparent 70%);
+    animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(100%); }
+}
+
+.photo-error {
+    padding: 48px 16px;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+    letter-spacing: 0.1em;
+}
+
+.photo-caption {
     color: var(--text-color);
-    margin-bottom: 1.5rem;
+    margin: 10px 4px 4px;
+    line-height: 1.8;
+    letter-spacing: 0.06em;
+    font-size: 0.95rem;
 }
 
+/* ---------- 随机惊喜 ---------- */
+.surprise-gift { font-size: 1.05rem; }
+
+.surprise-text {
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+    min-height: 2.6em;
+}
+
+.surprise-text.is-on { opacity: 1; transform: translateY(0); }
+
+/* ---------- 庆祝 ---------- */
 .celebration-text {
-    font-size: 1.2rem;
+    font-size: 1.05rem;
     margin: 10px 0;
-    line-height: 1.6;
+    line-height: 1.9;
+    letter-spacing: 0.06em;
 }
 
 #celebrationEmojis {
-    font-size: 2.5rem;
-    margin-top: 20px;
+    font-size: 1.5rem;
+    margin-top: 14px;
+    min-height: 1.2em;
 }
 
+/* ---------- 步骤转场（display 切换时重放） ---------- */
+.question-section,
+.celebration {
+    animation: sectionIn 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes sectionIn {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- 音乐 / 分享（细线风格） ---------- */
 .music-controls {
     position: fixed;
-    top: 20px;
-    right: 20px;
+    top: calc(14px + env(safe-area-inset-top, 0px));
+    right: 14px;
     z-index: 100;
 }
 
 .music-btn {
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid var(--button-color);
+    background: var(--panel);
+    border: 1px solid var(--hairline);
     color: var(--text-color);
     padding: 8px 16px;
-    border-radius: 20px;
+    border-radius: 999px;
     cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    backdrop-filter: blur(4px);
+    font-family: inherit;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    transition: border-color 0.3s ease, opacity 0.3s ease;
+    opacity: 0.85;
 }
 
+.music-btn:hover { border-color: rgba(74, 58, 51, 0.4); opacity: 1; }
+
 .share-container {
-    margin-top: 30px;
-    padding-top: 20px;
-    border-top: 1px solid rgba(0,0,0,0.05);
+    margin-top: 28px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(74, 58, 51, 0.08);
 }
 
 .share-btn {
     background: transparent;
-    border: 2px solid var(--button-color);
+    border: 1px solid var(--hairline);
     color: var(--text-color);
-    padding: 8px 20px;
-    border-radius: 20px;
+    padding: 9px 20px;
+    border-radius: 999px;
     cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s;
+    font-family: inherit;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 .share-btn:hover {
     background: var(--button-color);
-    color: white;
+    border-color: var(--button-color);
+    color: #fdf7f1;
 }
 
-/* Screen reader only */
+/* ---------- 无障碍 ---------- */
 .sr-only {
     position: absolute;
     width: 1px;
@@ -257,113 +481,41 @@ h2 {
     border: 0;
 }
 
-/* Mobile Adjustments */
+.secret-answer .cute-btn.special {
+    font-size: 0.8rem;
+    padding: 8px 16px;
+    min-width: auto;
+    min-height: auto;
+    background: rgba(255, 255, 255, 0.5);
+    color: var(--text-color);
+    border: 1px dashed var(--hairline);
+}
+
+/* ---------- 响应式 ---------- */
 @media (max-width: 480px) {
-    h1 { font-size: 2.2rem; }
-    h2 { font-size: 1.2rem; }
-    .container { padding: 1.5rem; }
+    h1 { font-size: 1.5rem; }
+    .container { padding: 1.6rem; }
     .cute-btn { width: 100%; }
     .music-controls { top: 10px; right: 10px; }
-
-    /* Reduce animation density on mobile */
-    .heart:nth-child(even), .bear:nth-child(even) {
-        display: none;
-    }
+    .photo-frame img, .photo-frame video { max-height: 44vh; }
 }
 
-/* ============================================================
-   以下为情侣游戏新增样式，全部复用母版 CSS 变量与按钮风格，
-   不引入新的配色 / 字体 / 设计体系。
-   ============================================================ */
-
-/* 首页副标题（中文大标题下方的小字） */
-.home-sub {
-    color: var(--text-color);
-    font-weight: 300;
-    font-size: 1.05rem;
-    margin: -0.5rem 0 1.2rem;
-    opacity: 0.85;
-}
-
-/* 默契测试：选项 2×2 网格（沿用 .cute-btn 外观） */
-.option-group {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin: 18px 0;
-}
-.option-btn { width: 100%; min-width: 0; }
-.option-btn:disabled { cursor: default; }
-/* 正确 / 错误只靠母版同色系的明暗区分，不引入新颜色 */
-.option-btn.option-correct {
-    background: var(--text-color);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.18);
-    transform: scale(1.04);
-}
-.option-btn.option-wrong { opacity: 0.45; }
-
-/* 通用反馈文字（答对/答错、惊喜、小结） */
-.game-feedback {
-    min-height: 1.4em;
-    font-weight: 600;
-    color: var(--text-color);
-    margin: 6px 0 4px;
-    line-height: 1.6;
-}
-
-/* 随机问题 / 小任务正文 */
-.random-text {
-    font-size: 1.25rem;
-    color: var(--text-color);
-    line-height: 1.8;
-    margin: 18px 10px;
-    font-weight: 600;
-}
-
-/* Love Meter 超过档位的强调（母版脚本引用，补齐样式） */
-#extraLove.super-love {
-    font-size: 1.15rem;
-    color: var(--button-color);
-}
-.meter-done { font-weight: 600; color: var(--text-color); margin-top: 8px; }
-
-/* 照片区域：最简单展示，圆角与阴影沿用母版卡片语言 */
-.photo-stage {
-    margin: 16px auto 10px;
-    width: 100%;
-    display: flex;
-    justify-content: center;
-}
-.photo-stage img,
-.photo-stage video {
-    width: 100%;
-    max-height: 52vh;
-    object-fit: cover;
-    border-radius: 16px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-    background: #f3f3f3;
-}
-.photo-caption {
-    color: var(--text-color);
-    font-weight: 600;
-    margin: 8px 0 4px;
-    line-height: 1.6;
-}
-
-/* 随机惊喜 */
-.surprise-gift { font-size: 1.2rem; }
-.surprise-text {
-    opacity: 0;
-    transform: translateY(6px);
-    transition: opacity 0.5s, transform 0.5s;
-}
-.surprise-text.is-on { opacity: 1; transform: translateY(0); }
-
-/* 极小屏（320px）：选项改单列，避免拥挤；标题缩小防截断 */
 @media (max-width: 360px) {
     .option-group { grid-template-columns: 1fr; }
-    h1 { font-size: 1.9rem; }
-    h2 { font-size: 1.1rem; }
-    .random-text { font-size: 1.1rem; }
-    .container { padding: 1.2rem; margin: 12px; }
+    h1 { font-size: 1.35rem; }
+    h2 { font-size: 1.05rem; }
+    .random-text { font-size: 1rem; }
+    .container { padding: 1.3rem; margin: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .petal,
+    .question-section,
+    .celebration,
+    .random-text.is-swapping,
+    #extraLove,
+    .photo-frame.is-loading::after {
+        animation: none !important;
+    }
+    .surprise-text { transition: none; }
 }

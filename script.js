@@ -114,29 +114,20 @@ window.addEventListener('DOMContentLoaded', () => {
 // ============================================================
 function createFloatingElements() {
     const container = document.querySelector('.floating-elements');
+    if (!container) return;
     container.innerHTML = '';
 
-    config.floatingEmojis.hearts.forEach(heart => {
-        const div = document.createElement('div');
-        div.className = 'heart';
-        div.innerHTML = heart;
-        setRandomPosition(div);
-        container.appendChild(div);
-    });
-
-    config.floatingEmojis.bears.forEach(bear => {
-        const div = document.createElement('div');
-        div.className = 'bear';
-        div.innerHTML = bear;
-        setRandomPosition(div);
-        container.appendChild(div);
-    });
-}
-
-function setRandomPosition(element) {
-    element.style.left = Math.random() * 100 + 'vw';
-    element.style.animationDelay = Math.random() * 5 + 's';
-    element.style.animationDuration = 10 + Math.random() * 20 + 's';
+    // 极少量花瓣，慢速飘落；纯 CSS 形状，不用 emoji
+    const PETAL_COUNT = window.innerWidth < 640 ? 5 : 9;
+    for (let i = 0; i < PETAL_COUNT; i++) {
+        const petal = document.createElement('div');
+        petal.className = 'petal';
+        petal.style.left = Math.random() * 100 + 'vw';
+        petal.style.setProperty('--fall-duration', 12 + Math.random() * 10 + 's');
+        petal.style.setProperty('--fall-delay', Math.random() * 14 + 's');
+        petal.style.setProperty('--fall-distance', (Math.random() * 90 - 45) + 'px');
+        container.appendChild(petal);
+    }
 }
 
 // 母版原有：步骤切换（完整保留）
@@ -261,10 +252,18 @@ function pickRandom(arr, lastIdx) {
     do { i = Math.floor(Math.random() * arr.length); } while (i === lastIdx);
     return i;
 }
+function replaySwapAnimation(el) {
+    if (!el) return;
+    el.classList.remove('is-swapping');
+    void el.offsetWidth; /* 强制重排以重触发动画 */
+    el.classList.add('is-swapping');
+}
+
 function showRandomQuestion() {
     lastQuestionIdx = pickRandom(config.randomQuestions, lastQuestionIdx);
-    document.getElementById('randomQuestionText').textContent =
-        config.randomQuestions[lastQuestionIdx];
+    const el = document.getElementById('randomQuestionText');
+    el.textContent = config.randomQuestions[lastQuestionIdx];
+    replaySwapAnimation(el);
 }
 function nextRandomQuestion() { showRandomQuestion(); }
 
@@ -274,8 +273,9 @@ function nextRandomQuestion() { showRandomQuestion(); }
 let lastThingIdx = -1;
 function showSmallThing() {
     lastThingIdx = pickRandom(config.smallThings, lastThingIdx);
-    document.getElementById('smallThingText').textContent =
-        config.smallThings[lastThingIdx];
+    const el = document.getElementById('smallThingText');
+    el.textContent = config.smallThings[lastThingIdx];
+    replaySwapAnimation(el);
 }
 function nextSmallThing() { showSmallThing(); }
 
@@ -287,15 +287,39 @@ function renderPhoto() {
     const stage = document.getElementById('photoStage');
     const caption = document.getElementById('photoCaption');
     const list = config.photos || [];
-    if (!list.length) { stage.innerHTML = ''; caption.textContent = ''; return; }
+    if (!list.length) {
+        stage.innerHTML = '<div class="photo-frame"><div class="photo-error">还没有放进照片。</div></div>';
+        caption.textContent = '';
+        return;
+    }
     const p = list[photoIndex];
     const isVideo = /\.(mp4|webm|mov|ogg|m4v)(\?|$)/i.test(p.src || '');
     stage.innerHTML = isVideo
-        ? `<video src="${p.src}" controls playsinline loop muted></video>`
-        : `<img src="${p.src}" alt="回忆" />`;
+        ? `<div class="photo-frame is-loading"><video src="${p.src}" controls playsinline loop muted></video></div>`
+        : `<div class="photo-frame is-loading"><img src="${p.src}" alt="回忆" loading="lazy" /></div>`;
     caption.textContent = p.caption || '';
-    const v = stage.querySelector('video');
-    if (v) { v.muted = true; const pp = v.play(); if (pp && pp.catch) pp.catch(()=>{}); }
+
+    const frame = stage.querySelector('.photo-frame');
+    const img = stage.querySelector('img');
+    const video = stage.querySelector('video');
+    if (img) {
+        if (img.complete && img.naturalWidth) frame.classList.remove('is-loading');
+        img.addEventListener('load', () => frame.classList.remove('is-loading'));
+        img.addEventListener('error', () => {
+            frame.classList.remove('is-loading');
+            frame.innerHTML = '<div class="photo-error">这张照片暂时加载不出来。</div>';
+        });
+    }
+    if (video) {
+        video.muted = true;
+        video.addEventListener('loadeddata', () => frame.classList.remove('is-loading'));
+        video.addEventListener('error', () => {
+            frame.classList.remove('is-loading');
+            frame.innerHTML = '<div class="photo-error">这段视频暂时加载不出来。</div>';
+        });
+        const pp = video.play();
+        if (pp && pp.catch) pp.catch(() => {});
+    }
 }
 function nextPhoto() {
     if (!config.photos || !config.photos.length) return;
@@ -328,20 +352,25 @@ function celebrate() {
 
     document.getElementById('celebrationTitle').textContent = config.ending.title;
     document.getElementById('celebrationMessage').textContent = config.ending.message;
-    document.getElementById('celebrationEmojis').textContent = config.ending.emojis;
+    document.getElementById('celebrationEmojis').textContent = config.ending.emojis || '';
+    createHeartExplosion();
 
     // 母版原有：爱心爆炸效果
     createHeartExplosion();
 }
 
 function createHeartExplosion() {
-    for (let i = 0; i < 50; i++) {
-        const heart = document.createElement('div');
-        const randomHeart = config.floatingEmojis.hearts[Math.floor(Math.random() * config.floatingEmojis.hearts.length)];
-        heart.innerHTML = randomHeart;
-        heart.className = 'heart';
-        document.querySelector('.floating-elements').appendChild(heart);
-        setRandomPosition(heart);
+    const container = document.querySelector('.floating-elements');
+    if (!container) return;
+    for (let i = 0; i < 24; i++) {
+        const petal = document.createElement('div');
+        petal.className = 'petal is-burst';
+        petal.style.left = 20 + Math.random() * 60 + 'vw';
+        petal.style.top = 18 + Math.random() * 24 + 'vh';
+        petal.style.setProperty('--fall-distance', (Math.random() * 160 - 80) + 'px');
+        petal.style.setProperty('--burst-duration', 2 + Math.random() * 1.6 + 's');
+        petal.style.setProperty('--fall-delay', Math.random() * 0.6 + 's');
+        container.appendChild(petal);
     }
 }
 
@@ -371,9 +400,9 @@ function replayGame() {
 
     showNextQuestion(1);
 
-    // 重新播放：再次显示粒子玫瑰开场（不改动上面的复位逻辑）
-    if (window.ParticleIntro && typeof window.ParticleIntro.show === 'function') {
-        window.ParticleIntro.show();
+    // 重新播放：再次显示开场（不改动上面的复位逻辑）
+    if (window.Intro && typeof window.Intro.show === 'function') {
+        window.Intro.show();
     }
 }
 

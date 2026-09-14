@@ -3,34 +3,33 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f7ece2" />
     <!-- CUSTOMIZE: Browser tab title（由 config.js 的 pageTitle 覆盖） -->
     <title>和你一起玩 💕</title>
-    <!-- Google Fonts（母版原有字体，保留） -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Poppins:wght@300;400;600&display=swap"
-      rel="stylesheet"
-    />
-    <!-- Styles（母版样式表，保留；新游戏样式追加在末尾） -->
+    <!-- Styles -->
     <link rel="stylesheet" href="styles.css" />
-    <!-- 第一屏粒子玫瑰开场样式 -->
-    <link rel="stylesheet" href="css/particle-intro.css" />
+    <link rel="stylesheet" href="css/intro.css" />
   </head>
-  <body>
-    <!-- Floating Background Elements（母版浮动爱心/熊，保留，由 JS 生成） -->
+  <body class="intro-active">
+    <!-- Site 级动态背景（第一屏与后续页面共用，js/intro.js 驱动） -->
+    <canvas id="bg-canvas" aria-hidden="true"></canvas>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <!-- Floating Petals（替代母版 emoji 漂浮元素，由 JS 生成） -->
     <div class="floating-elements" aria-hidden="true"></div>
 
-    <!-- Main Content Container（母版白色圆角卡片，保留） -->
+    <!-- Main Content Container -->
     <main class="container">
       <h1 id="valentineTitle"></h1>
 
-      <!-- Music Player（母版音乐控件，保留；音乐源改为本地 ./assets/audio/bgm.mp3） -->
+      <!-- Music Player（音乐源为本地 ./assets/audio/bgm.mp3） -->
       <div id="musicControls" class="music-controls">
         <button
           id="musicToggle"
           class="music-btn"
           aria-label="Toggle Background Music"
         >
-          🎵 放音乐
+          放音乐
         </button>
         <audio id="bgMusic" loop>
           <source id="musicSource" type="audio/mpeg" />
@@ -38,7 +37,7 @@
         </audio>
       </div>
 
-      <!-- Step 1 — 首页（h1 为母版英文手写标题，在最上方；下面是中文标题与副标题） -->
+      <!-- Step 1 — 首页 -->
       <section class="question-section" id="question1">
         <h2 id="homeTitle"></h2>
         <p class="home-sub" id="homeSubtitle"></p>
@@ -47,7 +46,7 @@
         </div>
       </section>
 
-      <!-- Step 2 — 小游戏1：默契测试（沿用 Question + Button UI） -->
+      <!-- Step 2 — 小游戏1：默契测试 -->
       <section class="question-section hidden" id="question2">
         <h2 id="quizText"></h2>
         <div class="option-group" id="quizOptions"></div>
@@ -57,7 +56,7 @@
         </div>
       </section>
 
-      <!-- Step 3 — 小游戏2：Love Meter（母版结构完整保留） -->
+      <!-- Step 3 — 小游戏2：Love Meter -->
       <section class="question-section hidden" id="question3">
         <h2 id="meterText"></h2>
         <div class="love-meter">
@@ -100,7 +99,7 @@
         </div>
       </section>
 
-      <!-- Step 6 — 照片（母版无此区域，使用母版已有 CSS 变量做最简单展示） -->
+      <!-- Step 6 — 照片（展示区预留：后续可替换为全息卡片组件，数据接口不变） -->
       <section class="question-section hidden" id="question6">
         <div class="photo-stage" id="photoStage"></div>
         <p class="photo-caption" id="photoCaption"></p>
@@ -122,7 +121,7 @@
         </div>
       </section>
 
-      <!-- 结束页（母版 Celebration，保留爱心爆炸庆祝） -->
+      <!-- 结束页（Celebration + 花瓣庆祝） -->
       <section class="celebration hidden" id="celebration">
         <h2 id="celebrationTitle"></h2>
         <p class="celebration-text" id="celebrationMessage"></p>
@@ -139,19 +138,37 @@
           class="share-btn"
           aria-label="Copy shareable link"
         >
-          🔗 复制本页链接
+          复制本页链接
         </button>
       </div>
     </main>
 
-    <!-- Scripts（母版加载顺序，保持不变） -->
+    <!-- 第一屏开场（A 暖奶油背景 + Redouté《Les Roses》铜版画，公有领域） -->
+    <div id="intro-overlay">
+      <div class="intro-rose" aria-hidden="true">
+        <img src="./assets/art/redoute-gallica-bloom.webp" alt="" />
+      </div>
+      <div class="intro-copy">
+        <h1 class="intro-title">我们的小小世界</h1>
+        <p class="intro-sub">A little world, just for us.</p>
+        <button id="introEnter" class="intro-enter" type="button">进　入</button>
+      </div>
+      <button id="introMusic" class="intro-music" type="button" aria-label="切换音乐">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 18V5l10-2v13" />
+          <circle cx="6.5" cy="18" r="2.5" />
+          <circle cx="16.5" cy="16" r="2.5" />
+          <path class="wave-2" d="M21.5 8.5c.8-1.6.8-3.4 0-5" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Scripts -->
     <script src="config.js"></script>
     <script src="config-system.js"></script>
     <script src="state.js"></script>
     <script src="theme.js"></script>
     <script src="script.js"></script>
-    <!-- 第一屏粒子玫瑰开场（全局 Three.js UMD，纯 script 标签，无构建） -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-    <script src="js/particle-intro.js"></script>
+    <script type="module" src="js/intro.js"></script>
   </body>
 </html>

@@ -38,9 +38,9 @@ const CONFIG = {
     },
     // 拖过不同数值时出现的趣味文案（母版机制：>100 / >1000 / >5000）
     loveMessages: {
-        extreme: "哇，默契直接爆表了！！🥰🚀",
-        high: "默契拉满，冲出去了！🚀",
-        normal: "超过 100% 啦 🥰"
+        extreme: "哇，默契直接爆表了！！",
+        high: "默契拉满，冲出去了！",
+        normal: "超过 100% 啦"
     },
 
     // —— 小游戏 3：随机问题（点“再来一个”随机切换）——
@@ -117,6 +117,7 @@ const CONFIG = {
     // —— 风景照片（免费可商用 Unsplash 素材，已下载到本地 ./assets/photos/）——
     // 想换成自己的图，把文件放进 assets/photos 并改这里的 src / caption 即可。
     photos: [
+        { src: "./assets/photos/holographic-src.jpg", caption: "第一张，先放在这里。" },
         { src: "./assets/photos/landscape-01.jpg", caption: "看到好看的天，第一反应是想发给你。" },
         { src: "./assets/photos/landscape-02.jpg", caption: "想和你一起去很高很高的地方看看。" },
         { src: "./assets/photos/landscape-03.jpg", caption: "雾蒙蒙的树林，很安静，像和你待着的时候。" },
@@ -129,7 +130,7 @@ const CONFIG = {
     photoNextBtn: "下一个",
 
     // —— 随机惊喜（点礼物盒随机出一句）——
-    surpriseBtn: "🎁 点我有惊喜",
+    surpriseBtn: "点一下，看看是什么",
     surprises: [
         "今天也偷偷喜欢你一下。",
         "恭喜你，抽到了今天的小惊喜。",
@@ -144,7 +145,7 @@ const CONFIG = {
     ending: {
         title: "今天先玩到这里。",
         message: "下次再一起玩。",
-        emojis: "💕🎈🍬🍭",
+        emojis: "",
         replayBtn: "再玩一次"
     },
 
@@ -158,13 +159,13 @@ const CONFIG = {
         bears: ['🧸', '🐻']
     },
 
-    // 配色（母版原始粉橘配色，保持不动）
+    // 配色（与第一屏同一视觉系统：暖奶油底 / 墨色文字 / 玫瑰强调色）
     colors: {
-        backgroundStart: "#ffafbd",
-        backgroundEnd: "#ffc3a0",
-        buttonBackground: "#ff6b6b",
-        buttonHover: "#ff8787",
-        textColor: "#ff4757"
+        backgroundStart: "#f7ece2",
+        backgroundEnd: "#f3d5cb",
+        buttonBackground: "#a8544f",
+        buttonHover: "#8f403c",
+        textColor: "#4a3a33"
     },
 
     // 动画参数（母版原值，保持不动）
@@ -180,8 +181,8 @@ const CONFIG = {
         enabled: true,
         autoplay: true,                       // 浏览器允许时自动播放，被拦截时点页面任意处会播放
         musicUrl: "./assets/audio/bgm.mp3",   // 本地音乐路径
-        startText: "🎵 放音乐",
-        stopText: "🔇 暂停",
+        startText: "放音乐",
+        stopText: "暂停",
         volume: 0.5
     }
 };
