@@ -1,0 +1,33 @@
+# 开场页自身的对比度 —— 此前从未被验证过的一块盲区
+#
+# 为什么单独一个文件：steps-contrast.txt 的每一段都是
+#     wait 2200 → !click #introEnter → wait 2600 → @contrast
+# 也就是**先把开场页关掉再测**。于是 #introTitle / #introSub / #introEnter 在
+# 所有测量里都是 display:none：axe 因不可见而跳过、@contrast 的第 106 行
+# （offsetParent === null 就 continue）也跳过。
+#
+# 后果：axe 报出的 `incomplete: color-contrast` 里，musicToggle / smallThingText
+# 那两处是被 @contrast 手工判定过的，而**开场页这三个节点从来没被判定过** ——
+# 它是每个访客看到的第一屏，却是唯一没有对比度证据的一屏。
+#
+# 本文件只做一件事：在点掉开场页**之前**跑 @contrast。
+# 三个主题各测一次（开场页底衬是 canvas mesh 渐变，主题不同极值不同）。
+#
+# 前置：python -m http.server 8899 --bind 127.0.0.1（仓库根目录）
+# 运行：node tools/qa/build-batch.js .qa-out/contrast-intro.batch.json tools/qa/steps-contrast-intro.txt
+#       agent-browser close --all && agent-browser batch < .qa-out/contrast-intro.batch.json > .qa-out/contrast-intro.log 2>&1
+
+open http://127.0.0.1:8899/index.html
+set viewport 390 844
+wait 3000
+@contrast
+
+open http://127.0.0.1:8899/index.html?theme=night-archive
+set viewport 390 844
+wait 3000
+@contrast
+
+open http://127.0.0.1:8899/index.html?theme=modern-paper
+set viewport 390 844
+wait 3000
+@contrast
