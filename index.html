@@ -7,9 +7,9 @@
     <!-- CUSTOMIZE: Browser tab title（由 config.js 的 pageTitle 覆盖） -->
     <title>和你一起玩 💕</title>
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css?v=10" />
-    <link rel="stylesheet" href="css/intro.css?v=10" />
-    <link rel="stylesheet" href="vendor/glightbox.min.css?v=10" />
+    <link rel="stylesheet" href="styles.css?v=13" />
+    <link rel="stylesheet" href="css/intro.css?v=13" />
+    <link rel="stylesheet" href="vendor/glightbox.min.css?v=13" />
   </head>
   <body class="intro-active">
     <!-- Site 级动态背景（第一屏与后续页面共用，js/intro.js 驱动） -->
@@ -63,59 +63,80 @@
         </div>
       </section>
 
-      <!-- Step 3 — 小游戏2：Love Meter -->
+      <!-- Step 3 — 小游戏2：Love Meter（视觉语言：模拟仪表；原生 range 保留为可访问的输入层） -->
       <section class="question-section hidden" id="question3">
         <div class="chapter-kicker">贰 · 心动</div>
         <h2 id="meterText"></h2>
-        <div class="love-meter">
-          <label for="loveMeter" class="sr-only">Love Meter</label>
+        <div class="love-meter instrument">
+          <svg class="gauge" viewBox="0 0 240 138" role="img" aria-labelledby="gaugeTitle">
+            <title id="gaugeTitle">心动指数仪表</title>
+            <path class="gauge-track" d="M 28 120 A 92 92 0 0 1 212 120" pathLength="100" />
+            <path class="gauge-fill" id="gaugeFill" d="M 28 120 A 92 92 0 0 1 212 120" pathLength="100" />
+            <g class="gauge-ticks" id="gaugeTicks" aria-hidden="true"></g>
+            <g class="gauge-peak" id="gaugePeak" aria-hidden="true" hidden>
+              <line x1="120" y1="28" x2="120" y2="38" />
+            </g>
+            <g class="gauge-needle" id="gaugeNeedle" aria-hidden="true">
+              <line x1="120" y1="130" x2="120" y2="44" />
+            </g>
+            <circle class="gauge-hub" cx="120" cy="120" r="5.5" />
+          </svg>
+          <p class="gauge-readout">
+            <span class="gauge-value" id="loveValue">100</span><span class="gauge-unit">%</span>
+          </p>
+          <p class="gauge-legend">
+            <span id="startText"></span>
+            <span id="extraLove" class="hidden"></span>
+          </p>
+          <label for="loveMeter" class="sr-only">心动指数</label>
           <input
             type="range"
             min="0"
             max="10000"
             value="100"
-            class="slider"
+            class="slider instrument-slider"
             id="loveMeter"
           />
-          <p>
-            <span class="love-value-container"
-              ><span id="startText"></span> (<span id="loveValue">100</span
-              >%)</span
-            >
-            <span id="extraLove" class="hidden"></span>
-          </p>
         </div>
         <button class="cute-btn" onclick="finishMeter()" id="meterNextBtn"></button>
       </section>
 
-      <!-- Step 4 — 小游戏3：随机问题 -->
+      <!-- Step 4 — 小游戏3：随机问题（视觉语言：编辑设计引文） -->
       <section class="question-section hidden" id="question4">
         <div class="chapter-kicker">叁 · 想问你</div>
-        <h2 class="random-text" id="randomQuestionText"></h2>
+        <figure class="editorial">
+          <span class="editorial-folio" aria-hidden="true">No. <b id="questionFolio">01</b></span>
+          <blockquote class="editorial-question" id="randomQuestionText"></blockquote>
+          <figcaption class="editorial-rule" aria-hidden="true"></figcaption>
+        </figure>
         <div class="button-group">
-          <button class="cute-btn" onclick="nextRandomQuestion()" id="questionAgainBtn"></button>
+          <button class="cute-btn text-action" onclick="nextRandomQuestion()" id="questionAgainBtn"></button>
           <button class="cute-btn" onclick="showNextQuestion(5)" id="questionNextBtn"></button>
         </div>
       </section>
 
-      <!-- Step 5 — 小游戏4：随机小任务 -->
+      <!-- Step 5 — 小游戏4：随机小任务（视觉语言：便签纸） -->
       <section class="question-section hidden" id="question5">
         <div class="chapter-kicker">肆 · 小事</div>
-        <h2 id="smallThingsTitle"></h2>
-        <p class="random-text task-note" id="smallThingText"></p>
-        <div class="button-group">
-          <button class="cute-btn" onclick="nextSmallThing()" id="smallThingAgainBtn"></button>
+        <div class="note-slip">
+          <span class="note-tape" aria-hidden="true"></span>
+          <h2 class="note-title" id="smallThingsTitle"></h2>
+          <p class="note-body" id="smallThingText"></p>
+        </div>
+        <div class="button-group paired">
+          <button class="cute-btn ghost" onclick="nextSmallThing()" id="smallThingAgainBtn"></button>
           <button class="cute-btn" onclick="showNextQuestion(6)" id="smallThingNextBtn"></button>
         </div>
       </section>
 
-      <!-- Step 6 — 照片（展示区预留：后续可替换为全息卡片组件，数据接口不变） -->
+      <!-- Step 6 — 照片（视觉语言：美术馆档案 / 联系印样；后续可换全息卡片，数据接口不变） -->
       <section class="question-section hidden" id="question6">
         <div class="chapter-kicker">伍 · 私人档案</div>
         <div class="photo-stage" id="photoStage"></div>
         <p class="photo-caption" id="photoCaption"></p>
-        <div class="button-group">
-          <button class="cute-btn" onclick="prevPhoto()" id="photoPrevBtn">上一张</button>
+        <nav class="contact-sheet" id="contactSheet" aria-label="照片索引"></nav>
+        <div class="button-group paired">
+          <button class="cute-btn ghost" onclick="prevPhoto()" id="photoPrevBtn"></button>
           <button class="cute-btn" onclick="showNextQuestion(7)" id="photoNextBtn"></button>
         </div>
       </section>
@@ -126,20 +147,28 @@
         <div class="letter-stage" id="letterStage"></div>
         <p class="photo-caption" id="letterHint"></p>
         <div class="button-group">
-          <button class="cute-btn hidden" onclick="nextLetter()" id="letterAgainBtn"></button>
+          <button class="cute-btn ghost hidden" onclick="nextLetter()" id="letterAgainBtn"></button>
           <button class="cute-btn" onclick="showNextQuestion(8)" id="letterNextBtn"></button>
         </div>
       </section>
 
-      <!-- Step 8 — 随机惊喜 -->
+      <!-- Step 8 — 随机惊喜（视觉语言：信封开合） -->
       <section class="question-section hidden" id="question8">
         <div class="chapter-kicker">柒 · 惊喜</div>
-        <div class="button-group">
-          <button class="cute-btn surprise-gift" onclick="nextSurprise()" id="surpriseBtn"></button>
+        <div class="envelope" id="envelope">
+          <div class="envelope-inner">
+            <article class="envelope-sheet">
+              <p class="envelope-text" id="surpriseText"></p>
+            </article>
+            <div class="envelope-shell" aria-hidden="true">
+              <span class="envelope-seal"></span>
+            </div>
+            <div class="envelope-flap" aria-hidden="true"></div>
+          </div>
         </div>
-        <p class="game-feedback surprise-text" id="surpriseText"></p>
-        <div class="button-group">
-          <button class="cute-btn hidden" onclick="nextSurprise()" id="surpriseAgainBtn"></button>
+        <div class="button-group paired">
+          <button class="cute-btn full-row" onclick="nextSurprise()" id="surpriseBtn"></button>
+          <button class="cute-btn ghost hidden" onclick="nextSurprise()" id="surpriseAgainBtn"></button>
           <button class="cute-btn hidden" onclick="celebrate()" id="surpriseNextBtn"></button>
         </div>
       </section>
@@ -187,12 +216,12 @@
     </div>
 
     <!-- Scripts -->
-    <script src="config.js?v=10"></script>
-    <script src="config-system.js?v=10"></script>
-    <script src="state.js?v=10"></script>
-    <script src="theme.js?v=10"></script>
-    <script src="vendor/glightbox.min.js?v=10"></script>
-    <script src="script.js?v=10"></script>
-    <script type="module" src="js/intro.js?v=10"></script>
+    <script src="config.js?v=13"></script>
+    <script src="config-system.js?v=13"></script>
+    <script src="state.js?v=13"></script>
+    <script src="theme.js?v=13"></script>
+    <script src="vendor/glightbox.min.js?v=13"></script>
+    <script src="script.js?v=13"></script>
+    <script type="module" src="js/intro.js?v=13"></script>
   </body>
 </html>

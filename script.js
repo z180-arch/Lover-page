@@ -38,6 +38,23 @@ function validateConfig() {
     }
 }
 
+/* 把用户内容安全放进 innerHTML：配置里出现 < & 等字符时不破坏版式（§31 错误态） */
+function esc(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+/* 文案池守卫：过滤空串，池为空时返回空数组（由章节跳过规则处理，绝不渲染 "undefined"） */
+function textPool(list) {
+    return Array.isArray(list)
+        ? list.filter(v => typeof v === 'string' && v.trim() !== '')
+        : [];
+}
+
 // Default color values
 function getDefaultColor(key) {
     const defaults = {
@@ -98,9 +115,11 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('smallThingNextBtn').textContent = config.smallThingNextBtn;
     showSmallThing();
 
-    // 照片（先建灯箱再渲染，保证首张即可点开）
+    // 照片（先建灯箱 + 联系印样，再渲染，保证首张即可点开、胶片条已就位）
+    document.getElementById('photoPrevBtn').textContent = config.photoPrevBtn || '上一张';
     document.getElementById('photoNextBtn').textContent = config.photoNextBtn;
     buildPhotoLightbox();
+    buildContactSheet();
     renderPhoto();
 
     // 随机惊喜
@@ -158,12 +177,32 @@ function createFloatingElements() {
 }
 
 // 母版原有：步骤切换（完整保留）+ 产品化：空章节自动跳过
+/* 内容为空的章节直接跳过：避免收信人走到「空白页 / 只有一行占位文字 / 点不动的按钮」（§31）。
+   与 letters 原有的跳过逻辑统一为一张表，新增章节只在这里加一行。 */
+const CHAPTER_CONTENT_COUNT = {
+    2: () => ((config.quiz && config.quiz.options) || []).length,
+    4: () => textPool(config.randomQuestions).length,
+    5: () => textPool(config.smallThings).length,
+    6: () => (config.photos || []).length,
+    7: () => (((config.story && config.story.letters) || config.letters) || []).length,
+    8: () => textPool(config.surprises).length
+};
+
 function showNextQuestion(questionNumber) {
-    if (questionNumber === 7 && !(((config.story && config.story.letters) || config.letters || []).length)) {
-        questionNumber = 8; // 没有信件就跳过“来信”章
+    let n = Number(questionNumber);
+
+    // 向前跳过所有无内容章节；全部为空时直接进入结尾（而不是停在空页）
+    let guard = 0;
+    while (CHAPTER_CONTENT_COUNT[n] && CHAPTER_CONTENT_COUNT[n]() === 0 && guard++ < 12) {
+        n += 1;
     }
+    if (n > 8) {
+        celebrate();
+        return;
+    }
+
     if (config.sound && config.sound.uiTick) Sound.tick();
-    window.appState.setState({ currentStep: questionNumber });
+    window.appState.setState({ currentStep: n });
 }
 
 // 母版原有：会“逃跑”的按钮（函数保留，母版交互不删除）
@@ -217,19 +256,110 @@ function answerQuiz(i, btn) {
 
 // ============================================================
 // 小游戏 2：Love Meter（母版机制完整保留，仅文案来自 config）
+// 视觉层：模拟仪表的实时读数（纯 SVG，无依赖、无构建）
 // ============================================================
 const loveMeter = document.getElementById('loveMeter');
 const loveValue = document.getElementById('loveValue');
 const extraLove = document.getElementById('extraLove');
 
+/* 仪表几何：与 HTML 里的 viewBox 0 0 240 138 对应（半圆 180°） */
+const GAUGE_CX = 120;
+const GAUGE_CY = 120;
+const GAUGE_R = 92;
+const GAUGE_ANGLE_MIN = -90;   // 9 点钟方向
+const GAUGE_ANGLE_MAX = 90;    // 3 点钟方向
+const GAUGE_OVER_SWING = 13;   // 超出量程后指针继续前压的最大角度（限位手感）
+const GAUGE_OVER_CAP = 100;    // 量程上限（>100 即“爆表”区）
+
+/** 数值 → 指针角度（度）。0–100 均匀铺满左半到右半；>100 顶到限位后缓慢前压并趋于饱和。 */
+function gaugeAngleFor(value) {
+    const v = Math.max(0, Number(value) || 0);
+    if (v <= GAUGE_OVER_CAP) {
+        return GAUGE_ANGLE_MIN + (v / GAUGE_OVER_CAP) * (GAUGE_ANGLE_MAX - GAUGE_ANGLE_MIN);
+    }
+    return GAUGE_ANGLE_MAX + GAUGE_OVER_SWING * (1 - GAUGE_OVER_CAP / v);
+}
+
+/** 极坐标 → SVG 用户坐标。0° 指向正上方，顺时针为正。 */
+function gaugePolar(deg, radius) {
+    const rad = (deg * Math.PI) / 180;
+    return { x: GAUGE_CX + radius * Math.sin(rad), y: GAUGE_CY - radius * Math.cos(rad) };
+}
+
+const gaugeFmt = (n) => Number(n).toFixed(2);
+
+/* 刻度：0–100 每 5 一格，每 25 一主刻度带数字；末端一条限位挡针 */
+function buildGaugeTicks() {
+    const g = document.getElementById('gaugeTicks');
+    if (!g) return;
+    let html = '';
+    for (let v = 0; v <= GAUGE_OVER_CAP; v += 5) {
+        const major = v % 25 === 0;
+        const deg = gaugeAngleFor(v);
+        const outer = gaugePolar(deg, GAUGE_R - 6);
+        const inner = gaugePolar(deg, GAUGE_R - (major ? 20 : 13));
+        html += `<line class="gauge-tick${major ? ' is-major' : ''}" x1="${gaugeFmt(inner.x)}" y1="${gaugeFmt(inner.y)}" x2="${gaugeFmt(outer.x)}" y2="${gaugeFmt(outer.y)}" />`;
+        if (major) {
+            const lp = gaugePolar(deg, GAUGE_R - 31);
+            html += `<text class="gauge-tick-label" x="${gaugeFmt(lp.x)}" y="${gaugeFmt(lp.y)}" text-anchor="middle" dominant-baseline="central">${v}</text>`;
+        }
+    }
+    const stopOuter = gaugePolar(GAUGE_ANGLE_MAX + 2.2, GAUGE_R - 6);
+    const stopInner = gaugePolar(GAUGE_ANGLE_MAX + 2.2, GAUGE_R - 22);
+    html += `<line class="gauge-endstop" x1="${gaugeFmt(stopInner.x)}" y1="${gaugeFmt(stopInner.y)}" x2="${gaugeFmt(stopOuter.x)}" y2="${gaugeFmt(stopOuter.y)}" />`;
+    g.innerHTML = html;
+}
+
+/* 峰值标记：只记录超过 100 之后的最高点（真仪表的 drag pointer） */
+let gaugePeakAngle = null;
+
+function updateGauge(value) {
+    const v = Math.max(0, Number(value) || 0);
+    const angle = gaugeAngleFor(v);
+    const needle = document.getElementById('gaugeNeedle');
+    const fill = document.getElementById('gaugeFill');
+    const gauge = document.querySelector('.gauge');
+
+    if (needle) needle.style.transform = `rotate(${gaugeFmt(angle)}deg)`;
+    if (fill) {
+        // pathLength=100，所以 dasharray 直接用「百分比 100」的数值字符串（跨浏览器最稳）
+        const pct = Math.max(0, Math.min(100, ((angle - GAUGE_ANGLE_MIN) / 180) * 100));
+        fill.style.strokeDasharray = `${gaugeFmt(pct)} 100`;
+    }
+    if (gauge) gauge.classList.toggle('is-over', v > GAUGE_OVER_CAP);
+
+    const peak = document.getElementById('gaugePeak');
+    if (peak) {
+        if (v > GAUGE_OVER_CAP) {
+            if (gaugePeakAngle === null || angle > gaugePeakAngle) gaugePeakAngle = angle;
+            peak.style.transform = `rotate(${gaugeFmt(gaugePeakAngle)}deg)`;
+            peak.removeAttribute('hidden');
+        } else {
+            peak.setAttribute('hidden', '');
+        }
+    }
+}
+
+function resetGaugePeak() {
+    gaugePeakAngle = null;
+    const peak = document.getElementById('gaugePeak');
+    if (peak) {
+        peak.setAttribute('hidden', '');
+        peak.style.transform = '';
+    }
+}
+
 function setInitialPosition() {
     loveMeter.value = 100;
     loveValue.textContent = 100;
+    resetGaugePeak();
+    updateGauge(100);
 }
 
 loveMeter.addEventListener('input', () => {
-    const value = parseInt(loveMeter.value);
+    const value = parseInt(loveMeter.value, 10) || 0;
     loveValue.textContent = value;
+    updateGauge(value);
     window.appState.setState({ loveValue: value });
 
     if (value > 100) {
@@ -253,7 +383,7 @@ loveMeter.addEventListener('input', () => {
     }
 });
 
-window.addEventListener('DOMContentLoaded', setInitialPosition);
+window.addEventListener('DOMContentLoaded', () => { buildGaugeTicks(); setInitialPosition(); });
 window.addEventListener('load', setInitialPosition);
 
 // 点“下一个”：先给一句小结，再进入下一步
@@ -275,6 +405,7 @@ function finishMeter() {
 // ============================================================
 let lastQuestionIdx = -1;
 function pickRandom(arr, lastIdx) {
+    if (!arr || !arr.length) return -1;
     if (arr.length === 1) return 0;
     let i;
     do { i = Math.floor(Math.random() * arr.length); } while (i === lastIdx);
@@ -288,10 +419,16 @@ function replaySwapAnimation(el) {
 }
 
 function showRandomQuestion() {
-    lastQuestionIdx = pickRandom(config.randomQuestions, lastQuestionIdx);
+    const pool = textPool(config.randomQuestions);
     const el = document.getElementById('randomQuestionText');
-    el.textContent = config.randomQuestions[lastQuestionIdx];
+    lastQuestionIdx = pickRandom(pool, lastQuestionIdx);
+    if (lastQuestionIdx < 0) { el.textContent = ''; return; }
+    el.textContent = pool[lastQuestionIdx];
     replaySwapAnimation(el);
+
+    // 编辑设计的 folio 编号：跟随池内序号（两位），给「一本刊物在翻页」的感觉
+    const folio = document.getElementById('questionFolio');
+    if (folio) folio.textContent = String(lastQuestionIdx + 1).padStart(2, '0');
 }
 function nextRandomQuestion() { showRandomQuestion(); }
 
@@ -300,9 +437,11 @@ function nextRandomQuestion() { showRandomQuestion(); }
 // ============================================================
 let lastThingIdx = -1;
 function showSmallThing() {
-    lastThingIdx = pickRandom(config.smallThings, lastThingIdx);
+    const pool = textPool(config.smallThings);
     const el = document.getElementById('smallThingText');
-    el.textContent = config.smallThings[lastThingIdx];
+    lastThingIdx = pickRandom(pool, lastThingIdx);
+    if (lastThingIdx < 0) { el.textContent = ''; return; }
+    el.textContent = pool[lastThingIdx];
     replaySwapAnimation(el);
 }
 function nextSmallThing() { showSmallThing(); }
@@ -399,6 +538,7 @@ function renderPhoto() {
         const pp = video.play();
         if (pp && pp.catch) pp.catch(() => {});
     }
+    syncContactSheet();
 }
 function nextPhoto() {
     if (!config.photos || !config.photos.length) return;
@@ -411,43 +551,117 @@ function prevPhoto() {
     renderPhoto();
 }
 
+/* 联系印样（contact sheet）：美术馆档案式的横向缩略图索引。
+   与「上一张 / 下一个」按钮并行存在 —— 按钮是主路径，胶片条是快速定位。 */
+function buildContactSheet() {
+    const nav = document.getElementById('contactSheet');
+    if (!nav) return;
+    const list = config.photos || [];
+    if (list.length < 2) {
+        nav.setAttribute('hidden', '');
+        nav.innerHTML = '';
+        return;
+    }
+    nav.removeAttribute('hidden');
+    nav.innerHTML = list.map((p, i) => {
+        const isVideo = /\.(mp4|webm|mov|ogg|m4v)(\?|$)/i.test(p.src || '');
+        const src = p.thumb || p.src;
+        const label = p.title || p.caption
+            || (isVideo ? `第 ${i + 1} 段影像` : `第 ${i + 1} 张照片`);
+        return `<button type="button" class="contact-cell" data-index="${i}"`
+            + ` aria-label="${esc(label)}" aria-current="false">`
+            + `<img src="${esc(src)}" alt="" loading="lazy" decoding="async" />`
+            + (isVideo ? '<span class="contact-video" aria-hidden="true"></span>' : '')
+            + '</button>';
+    }).join('');
+
+    nav.querySelectorAll('.contact-cell').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const i = Number(btn.dataset.index);
+            if (!Number.isInteger(i) || i < 0 || i >= list.length) return;
+            if (config.sound && config.sound.uiTick) Sound.tick();
+            photoIndex = i;
+            renderPhoto();
+        });
+    });
+}
+
+function syncContactSheet() {
+    const nav = document.getElementById('contactSheet');
+    if (!nav || nav.hasAttribute('hidden')) return;
+    const cells = nav.querySelectorAll('.contact-cell');
+    cells.forEach((b, i) => {
+        const on = i === photoIndex;
+        b.classList.toggle('is-current', on);
+        b.setAttribute('aria-current', on ? 'true' : 'false');
+    });
+    const cur = cells[photoIndex];
+    if (!cur) return;
+    // 只滚动胶片条自身 —— 用 scrollTo 而不是 scrollIntoView，避免连带把整页竖直滚动
+    const target = cur.offsetLeft - (nav.clientWidth - cur.clientWidth) / 2;
+    const max = nav.scrollWidth - nav.clientWidth;
+    if (Math.abs(nav.scrollLeft - Math.max(0, Math.min(max, target))) > 4) {
+        try {
+            nav.scrollTo({ left: Math.max(0, Math.min(max, target)), behavior: 'smooth' });
+        } catch (e) {
+            nav.scrollLeft = Math.max(0, Math.min(max, target));
+        }
+    }
+}
+
 // ============================================================
 // 信件 / 回忆（陆·来信）
 // ============================================================
 let letterIndex = 0;
 let letterAudio = null;
 
+/* 语音文案（config.sound.voiceTexts）：所有按钮文案唯一来源 */
+const DEFAULT_VOICE_TEXTS = { play: '播放语音', pause: '暂停', error: '暂时无法播放' };
+function voiceTexts() {
+    return Object.assign({}, DEFAULT_VOICE_TEXTS, (config.sound && config.sound.voiceTexts) || {});
+}
+
 function renderLetter() {
     const stage = document.getElementById('letterStage');
     const hint = document.getElementById('letterHint');
-    const list = (config.story && config.story.letters) || config.letters || [];
-    if (!list.length) return;
+    const list = ((config.story && config.story.letters) || config.letters || []);
+    if (!list.length) {
+        // 防御：正常情况下该章已被 showNextQuestion 跳过（§31 不留空白页）
+        stage.innerHTML = '<article class="letter-card"><p class="letter-body">'
+            + '还没有写下的信。</p></article>';
+        hint.textContent = '';
+        return;
+    }
     const p = list[letterIndex];
+    // 先取文案，再拼模板 —— 否则模板里引用 vt 会命中 TDZ（历史 bug）
+    const vt = voiceTexts();
 
-    const meta = p.date ? `<div class="letter-date">${p.date}</div>` : '';
-    const img = p.image ? `<img src="${p.image}" alt="" loading="lazy" />` : '';
+    const meta = p.date ? `<div class="letter-date">${esc(p.date)}</div>` : '';
+    const img = p.image
+        ? `<img src="${esc(p.image)}" alt="${esc(p.title || '信件配图')}" loading="lazy" />`
+        : '';
     const audio = (p.audio && config.sound && config.sound.voiceEnabled !== false) ? `
-        <button class="voice-btn" type="button" data-src="${p.audio}" aria-label="${vt.play}">
+        <button class="voice-btn" type="button" data-src="${esc(p.audio)}" aria-label="${esc(vt.play)}">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-          <span>${vt.play}</span>
+          <span>${esc(vt.play)}</span>
         </button>` : '';
 
     stage.innerHTML = `
       <article class="letter-card is-opening">
         ${meta}
-        <h3 class="letter-title">${p.title || ''}</h3>
+        <h3 class="letter-title">${esc(p.title)}</h3>
         ${img}
-        <p class="letter-body">${p.content || ''}</p>
+        <p class="letter-body">${esc(p.content)}</p>
         ${audio}
       </article>`;
     hint.textContent = list.length > 1 ? `${letterIndex + 1} / ${list.length}` : '';
 
     if (list.length > 1) {
         document.getElementById('letterAgainBtn').classList.remove('hidden');
+    } else {
+        document.getElementById('letterAgainBtn').classList.add('hidden');
     }
 
-    const vt = Object.assign({ play: '播放语音', pause: '暂停', error: '暂时无法播放' },
-        (config.sound && config.sound.voiceTexts) || {});
     const vb = stage.querySelector('.voice-btn');
     if (vb) {
         vb.addEventListener('click', () => toggleVoice(vb, p.audio));
@@ -455,13 +669,16 @@ function renderLetter() {
 
     // 结束后移除开信动画类
     const card = stage.querySelector('.letter-card');
-    card.addEventListener('animationend', (e) => {
-        if (e.animationName === 'letterOpen') card.classList.remove('is-opening');
-    });
+    if (card) {
+        card.addEventListener('animationend', (e) => {
+            if (e.animationName === 'letterOpen') card.classList.remove('is-opening');
+        });
+    }
 }
 
 function nextLetter() {
-    const list = (config.story && config.story.letters) || config.letters || [];
+    const list = ((config.story && config.story.letters) || config.letters || []);
+    if (list.length < 2) return;
     letterIndex = (letterIndex + 1) % list.length;
     renderLetter();
 }
@@ -469,6 +686,9 @@ function nextLetter() {
 /* 语音播放：原生 <audio> + 音量渐入，无依赖 */
 function toggleVoice(btn, src) {
     const fade = (config.sound && config.sound.fadeMs) || {};
+    const vt = voiceTexts();
+    const label = btn.querySelector('span');
+
     if (letterAudio && !letterAudio.paused) {
         fadeVolume(letterAudio, 0, fade.voiceOut || 400, () => {
             letterAudio.pause();
@@ -482,22 +702,22 @@ function toggleVoice(btn, src) {
     letterAudio.play().then(() => {
         fadeVolume(letterAudio, (config.sound && config.sound.volume) || config.music.volume || 0.6, fade.voiceIn || 800);
         btn.classList.add('is-playing');
-        btn.querySelector('span').textContent = '暂停';
+        if (label) label.textContent = vt.pause;
         letterAudio.onended = resetVoiceBtn;
-    letterAudio.onerror = () => {
-        resetVoiceBtn();
-        const sp = btn.querySelector('span');
-        if (sp) sp.textContent = vt.error;
-    };
+        letterAudio.onerror = () => {
+            resetVoiceBtn();
+            if (label) label.textContent = vt.error;
+        };
     }).catch(() => {
-        btn.querySelector('span').textContent = '暂时无法播放';
+        if (label) label.textContent = vt.error;
     });
 }
 function resetVoiceBtn() {
+    const vt = voiceTexts();
     document.querySelectorAll('.voice-btn').forEach(b => {
         b.classList.remove('is-playing');
         const sp = b.querySelector('span');
-        if (sp) sp.textContent = '播放语音';
+        if (sp) sp.textContent = vt.play;
     });
 }
 
@@ -552,10 +772,20 @@ const Sound = {
 // 随机惊喜
 // ============================================================
 function nextSurprise() {
-    const list = config.surprises;
+    const pool = textPool(config.surprises);
     const txt = document.getElementById('surpriseText');
-    txt.textContent = list[Math.floor(Math.random() * list.length)];
+    if (!pool.length) { txt.textContent = ''; txt.classList.remove('is-on'); return; }
+
+    txt.textContent = pool[Math.floor(Math.random() * pool.length)];
+
+    // 重放「纸条从信封里抽出来」的动画（再抽一个时也重放，而不是只有第一次）
+    txt.classList.remove('is-on');
+    void txt.offsetWidth;
     txt.classList.add('is-on');
+
+    const envelope = document.getElementById('envelope');
+    if (envelope) envelope.classList.add('is-open');
+    document.getElementById('surpriseBtn').classList.add('hidden');
     document.getElementById('surpriseAgainBtn').classList.remove('hidden');
     document.getElementById('surpriseNextBtn').classList.remove('hidden');
 }
@@ -569,9 +799,8 @@ function celebrate() {
     document.getElementById('celebrationTitle').textContent = config.ending.title;
     document.getElementById('celebrationMessage').textContent = config.ending.message;
     document.getElementById('celebrationEmojis').textContent = config.ending.emojis || '';
-    createHeartExplosion();
 
-    // 母版原有：爱心爆炸效果
+    // 母版原有：花瓣迸发（只调用一次 —— 历史 bug 是调用两次，密度翻倍）
     createHeartExplosion();
 }
 
@@ -603,10 +832,26 @@ function replayGame() {
     document.querySelectorAll('.meter-done').forEach(e => e.remove());
     showRandomQuestion();
     showSmallThing();
+
     photoIndex = 0;
     renderPhoto();
-    document.getElementById('surpriseText').textContent = '';
-    document.getElementById('surpriseText').classList.remove('is-on');
+
+    // 信件章：停止语音、回到第一封（历史遗漏 —— 重玩会从上次那封继续）
+    if (letterAudio) {
+        letterAudio.pause();
+        letterAudio = null;
+    }
+    resetVoiceBtn();
+    letterIndex = 0;
+    renderLetter();
+
+    // 惊喜章：合上信封，回到「还没拆」的状态
+    const envelope = document.getElementById('envelope');
+    if (envelope) envelope.classList.remove('is-open');
+    const surpriseText = document.getElementById('surpriseText');
+    surpriseText.textContent = '';
+    surpriseText.classList.remove('is-on');
+    document.getElementById('surpriseBtn').classList.remove('hidden');
     document.getElementById('surpriseAgainBtn').classList.add('hidden');
     document.getElementById('surpriseNextBtn').classList.add('hidden');
 

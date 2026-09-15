@@ -12,10 +12,15 @@
     --paper-3: #f3d5cb;
     --panel: rgba(255, 251, 246, 0.9);
 
-    /* ---------- ink ---------- */
+    /* ---------- ink ----------
+     * 三档墨色全部用实色而不是 rgba alpha：
+     *  1) 页面底色是 mesh gradient，alpha 文本的合成底色不可预测，axe 只能标「待复核」；
+     *  2) axe-core 实测 .plate-seq（--ink-faint）对比度只有 2.1:1，违反 WCAG AA 4.5:1。
+     * 实测值（对 --paper #fdf9f4）：ink 10.3:1 / soft 6.3:1 / faint 4.9:1。
+     */
     --ink: #4a3a33;
-    --ink-soft: rgba(74, 58, 51, 0.66);
-    --ink-faint: rgba(74, 58, 51, 0.4);
+    --ink-soft: #6b5a52;
+    --ink-faint: #7a6a62;
 
     /* ---------- accent ---------- */
     --accent: #a8544f;
@@ -295,6 +300,44 @@ h2 {
 .cute-btn.hidden { display: none; }
 .hidden { display: none !important; }
 
+/* ---------- 动作层级（每章按真实层级取用，避免"一排同款红按钮"） ----------
+ * solid  = 唯一的主行动（下一个 / 开始玩）
+ * ghost  = 次级：重抽、回看（描边，无底色）
+ * text   = 最轻：换一个提问这样的软动作
+ */
+.cute-btn.ghost {
+    background: transparent;
+    border-color: var(--hairline-strong);
+    color: var(--ink);
+}
+
+.cute-btn.ghost:hover {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* 成对动作：窄屏并排，压缩纵向堆叠 */
+@media (max-width: 480px) {
+    .button-group.paired {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .button-group.paired .cute-btn {
+        width: 100%;
+        min-width: 0;
+        padding-left: var(--space-2xs);
+        padding-right: var(--space-2xs);
+    }
+    .button-group.paired .cute-btn.text-action {
+        width: auto;
+        padding-left: var(--space-xs);
+        padding-right: var(--space-xs);
+    }
+    /* 单独出现时占满整行（如还没拆信封时的"点一下"） */
+    .button-group.paired .cute-btn.full-row { grid-column: 1 / -1; }
+}
+
 .cute-btn:disabled,
 .option-btn:disabled {
     opacity: 0.55;
@@ -342,21 +385,145 @@ h2 {
     letter-spacing: 0.06em;
 }
 
-/* ---------- Love Meter（仪器） ---------- */
-.love-meter {
-    width: 100%;
-    margin: var(--space-l) 0;
+/* ---------- 贰·心动：模拟仪表 ----------
+ * 一个真正的指针表：180° 刻度盘 + 阻尼指针 + 限位挡针 + 峰值标记。
+ * 数据层仍然是原生 <input type="range">（可键盘 / 可触摸 / 可被读屏朗读），
+ * 仪表只是它的可视化 —— 不引入任何图表库。
+ */
+.instrument {
+    position: relative;
+    width: min(320px, 100%);
+    margin: var(--space-m) auto var(--space-l);
+    padding: var(--space-s) var(--space-s) var(--space-2xs);
+    background: linear-gradient(180deg, rgba(255, 253, 250, 0.78), rgba(247, 236, 226, 0.42));
+    border: 1px solid var(--hairline-strong);
+    border-radius: 3px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
-.love-meter p {
-    font-family: var(--font-outlier);
-    color: var(--ink);
-    letter-spacing: 0.04em;
+.gauge {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
 }
+
+.gauge-track {
+    fill: none;
+    stroke: var(--hairline);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+}
+
+.gauge-fill {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    /* stroke-dasharray 由 JS 写死数值字符串（pathLength=100，跨浏览器最稳，不用 calc） */
+    transition: stroke-dasharray 420ms var(--ease-out), stroke 400ms ease;
+}
+
+.gauge-tick {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+}
+
+.gauge-tick.is-major {
+    stroke: var(--ink-soft);
+    stroke-width: 1.4;
+}
+
+.gauge-tick-label {
+    font-family: var(--font-outlier);
+    font-size: 9px;
+    letter-spacing: 0.02em;
+    fill: var(--ink-faint);
+}
+
+/* 限位挡针：指针冲到量程尽头时会被它挡住 */
+.gauge-endstop {
+    stroke: var(--accent);
+    stroke-width: 2;
+    opacity: 0.55;
+}
+
+.gauge-needle,
+.gauge-peak {
+    /* SVG 用户坐标旋转：view-box 让 transform-origin 用 120,120 这类视口坐标 */
+    transform-box: view-box;
+    transform-origin: 120px 120px;
+}
+
+.gauge-needle {
+    /* 略微过冲的缓动 = 真实指针的阻尼手感 */
+    transition: transform 460ms cubic-bezier(0.2, 0.9, 0.25, 1.06);
+}
+
+.gauge-needle line {
+    stroke: var(--accent-deep);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+}
+
+.gauge-peak {
+    transition: transform 200ms var(--ease-out);
+}
+
+.gauge-peak line {
+    stroke: var(--accent);
+    stroke-width: 2;
+}
+
+.gauge-hub {
+    fill: var(--accent-deep);
+    stroke: var(--paper);
+    stroke-width: 3;
+}
+
+/* 爆表：填弧加深、轨道泛红 —— 不用发光，靠墨色深浅表达 */
+.gauge.is-over .gauge-fill { stroke: var(--accent-deep); }
+.gauge.is-over .gauge-track { stroke: var(--accent-soft); }
+
+.gauge-readout {
+    margin: var(--space-2xs) 0 0;
+    font-family: var(--font-outlier);
+    font-size: 2rem;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+
+.gauge-value {
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.gauge-unit {
+    font-size: 0.85rem;
+    color: var(--ink-faint);
+    margin-left: 2px;
+}
+
+.gauge-legend {
+    margin: var(--space-2xs) 0 0;
+    min-height: 3.6em;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    line-height: 1.7;
+    color: var(--ink-soft);
+    text-align: center;
+}
+
+.instrument-slider { margin-top: var(--space-3xs); }
 
 .slider {
     width: 100%;
-    height: 22px;
+    /* 触摸目标 44px：轨道仍是 2px 细线（由 ::-webkit-slider-runnable-track 画），
+       但输入控件的命中区域放大到无障碍下限 */
+    height: 44px;
     -webkit-appearance: none;
     appearance: none;
     background: transparent;
@@ -424,41 +591,164 @@ h2 {
 #extraLove.super-love { font-size: 1.15rem; }
 .meter-done { color: var(--ink); margin-top: var(--space-2xs); letter-spacing: 0.06em; }
 
-/* ---------- 随机问题 / 小任务（低语 / 便签） ---------- */
-.random-text {
-    font-size: clamp(1.05rem, 2.4vw, 1.3rem);
-    color: var(--ink);
-    line-height: 2.1;
-    margin: var(--space-m) var(--space-2xs);
-    letter-spacing: 0.06em;
-    min-height: 2em;
+/* ---------- 叁·想问你：编辑设计引文 ----------
+ * 用版面而不是组件说话：大字号问题 + 上下细线 + folio 编号 + 左对齐。
+ * 「再来一个」退化为文字动作，避免每一章都是一排同款按钮。
+ */
+.editorial {
+    position: relative;
+    margin: var(--space-m) 0 var(--space-l);
+    padding: var(--space-l) 0 var(--space-m);
+    border-top: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--hairline);
+    text-align: left;
 }
 
-.random-text.is-swapping {
+.editorial-folio {
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translateY(-50%);
+    padding: 0 var(--space-2xs);
+    background: var(--panel);
+    font-family: var(--font-outlier);
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    color: var(--ink-faint);
+    font-variant-numeric: oldstyle-nums;
+    line-height: 1.6;
+}
+
+.editorial-folio b {
+    font-weight: 400;
+    color: var(--accent);
+}
+
+.editorial-question {
+    margin: 0;
+    min-height: 3.9em;
+    font-size: clamp(1.22rem, 3.4vw, 1.65rem);
+    line-height: 1.95;
+    letter-spacing: 0.05em;
+    color: var(--ink);
+    text-wrap: pretty;              /* 渐进增强：不支持时正常折行，不影响可读性 */
+}
+
+.editorial-question.is-swapping {
+    animation: textSwap var(--dur-med) var(--ease-out) both;
+}
+
+/* 尾随的分隔线：左侧一截实心，向右侧淡出 */
+.editorial-rule {
+    display: block;
+    height: 1px;
+    margin-top: var(--space-m);
+    background: linear-gradient(90deg, var(--hairline-strong), transparent);
+    position: relative;
+}
+
+.editorial-rule::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: -1.5px;
+    width: 26px;
+    height: 4px;
+    background: var(--accent);
+    opacity: 0.5;
+}
+
+/* 文字型次级动作：有下划线、无底色，与实心主按钮形成层级 */
+.cute-btn.text-action {
+    background: transparent;
+    border-color: transparent;
+    color: var(--ink-soft);
+    text-decoration: underline;
+    text-decoration-color: var(--hairline-strong);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 6px;
+}
+
+.cute-btn.text-action:hover {
+    background: transparent;
+    color: var(--accent);
+    text-decoration-color: var(--accent);
+}
+
+/* ---------- 肆·小事：便签纸 ----------
+ * 横格线的周期与 .note-body 的 line-height 严格相等，字才会「压在线上」。
+ */
+.note-slip {
+    position: relative;
+    width: min(360px, 100%);
+    margin: var(--space-m) auto var(--space-l);
+    padding: var(--space-m) var(--space-s) var(--space-s) 30px;
+    background-color: #fdfaf3;
+    border: 1px solid var(--hairline);
+    box-shadow: var(--shadow-card);
+    transform: rotate(-0.5deg);
+    text-align: left;
+}
+
+/* 便签左侧的红色装订线 */
+.note-slip::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 22px;
+    width: 1px;
+    background: rgba(168, 84, 79, 0.26);
+}
+
+/* 顶部胶带 */
+.note-tape {
+    position: absolute;
+    top: -11px;
+    left: 50%;
+    width: 88px;
+    height: 24px;
+    margin-left: -44px;
+    transform: rotate(-1.5deg);
+    background: rgba(238, 222, 198, 0.66);
+    border-left: 1px dashed rgba(74, 58, 51, 0.1);
+    border-right: 1px dashed rgba(74, 58, 51, 0.1);
+    box-shadow: 0 1px 3px rgba(80, 50, 35, 0.08);
+}
+
+.note-title {
+    margin: 0 0 var(--space-2xs);
+    font-size: 0.8rem;
+    font-weight: 400;
+    letter-spacing: 0.28em;
+    line-height: 1.4;
+    color: var(--accent);
+}
+
+.note-body {
+    margin: 0;
+    min-height: 3.4em;
+    font-size: 1rem;
+    line-height: 34px;          /* 必须等于横格周期 */
+    letter-spacing: 0.05em;
+    color: var(--ink);
+    background-image: repeating-linear-gradient(
+        180deg,
+        transparent 0,
+        transparent 33px,
+        rgba(74, 58, 51, 0.13) 33px,
+        rgba(74, 58, 51, 0.13) 34px
+    );
+    padding-bottom: 6px;
+}
+
+.note-body.is-swapping {
     animation: textSwap var(--dur-med) var(--ease-out) both;
 }
 
 @keyframes textSwap {
     0%   { opacity: 0; transform: translateY(8px); filter: blur(2px); }
     100% { opacity: 1; transform: translateY(0); filter: blur(0); }
-}
-
-/* 任务步骤：便签质感 */
-.task-note {
-    position: relative;
-    padding-top: var(--space-s);
-}
-
-.task-note::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: var(--space-l);
-    height: 1px;
-    background: var(--accent);
-    opacity: 0.5;
 }
 
 /* ---------- 照片（美术馆展签） ---------- */
@@ -532,6 +822,77 @@ h2 {
     line-height: 1.9;
     letter-spacing: 0.06em;
     font-size: 0.95rem;
+}
+
+/* ---------- 伍·私人档案：联系印样（胶片索引） ----------
+ * 隐藏滚动条但保留滑动能力 —— 用 scrollbar-width/::-webkit-scrollbar，
+ * 绝不能用 overflow:hidden（那样就彻底不能滑了）。
+ */
+.contact-sheet {
+    display: flex;
+    gap: var(--space-2xs);
+    margin: var(--space-s) 0 var(--space-2xs);
+    padding: 2px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.contact-sheet::-webkit-scrollbar { display: none; }
+.contact-sheet[hidden] { display: none; }
+
+.contact-cell {
+    position: relative;
+    flex: 0 0 auto;
+    scroll-snap-align: center;
+    width: 56px;
+    height: 56px;
+    padding: 0;
+    border: 1px solid var(--hairline);
+    background: var(--paper);
+    cursor: pointer;
+    opacity: 0.52;
+    filter: saturate(0.72);
+    transition: opacity var(--dur-fast) ease, filter var(--dur-fast) ease,
+                border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+
+.contact-cell img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.contact-cell:hover { opacity: 0.86; filter: none; }
+
+.contact-cell.is-current {
+    opacity: 1;
+    filter: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+}
+
+.contact-cell:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* 视频条目的播放三角 */
+.contact-video {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0;
+    height: 0;
+    margin: -5px 0 0 -4px;
+    border-left: 8px solid var(--paper);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
 }
 
 /* 照片揭幕：clip-path 逐张展开（Foam Talent 手法） */
@@ -625,21 +986,131 @@ h2 {
 .voice-btn svg { width: 12px; height: 12px; }
 .voice-btn.is-playing svg { animation: softBreathe 1.2s ease-in-out infinite alternate; }
 
-/* ---------- 随机惊喜（拆信） ---------- */
-.surprise-gift { font-size: 1.05rem; }
-
-.surprise-text {
-    opacity: 0;
-    margin: var(--space-m) var(--space-2xs);
-    line-height: 2;
-    letter-spacing: 0.08em;
-    color: var(--ink);
-    min-height: 3em;
+/* ---------- 柒·惊喜：信封 ----------
+ * 结构：sheet（信纸）/ shell（信封袋）/ flap（翻盖），三层分离。
+ * 关键取舍：
+ *  - 不用 preserve-3d（iOS Safari 上与 overflow:hidden 同元素会丢 3D），
+ *    只在 .envelope-inner 上给 perspective，flap 自己做 rotateX。
+ *  - 翻盖只翻到 118°（越过垂直、露出背面），投影高度落在 padding 预留区里，
+ *    不会顶到上方章节标题 —— 比一次性翻 180° 更可控也更像真的。
+ *  - 打开后 flap 降到信纸之下（z-index:0），信纸从袋口升起来盖在它前面。
+ */
+.envelope {
+    margin: var(--space-s) 0 var(--space-2xs);
+    padding-top: 24%;           /* 预留翻盖后仰 + 信纸升起的上方空间 */
 }
 
-.surprise-text.is-on {
+.envelope-inner {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 8 / 5;
+    perspective: 700px;
+}
+
+/* —— 信纸 —— */
+.envelope-sheet {
+    position: absolute;
+    left: 7%;
+    right: 7%;
+    top: 6%;
+    height: 64%;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: var(--space-xs) var(--space-m);
+    background: var(--paper);
+    border: 1px solid var(--hairline);
+    box-shadow: 0 8px 22px rgba(80, 50, 35, 0.14);
+    /* 闭合位移必须让信纸「整张」落在信封袋的竖直范围内 —— 否则底部会露出一条白边 */
+    transform: translateY(42%);
+    transition: transform 900ms var(--ease-out);
+}
+
+.envelope.is-open .envelope-sheet { transform: translateY(-56%); }
+
+.envelope-text {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.95;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+    text-align: center;
+    opacity: 0;
+}
+
+.envelope-text.is-on {
     opacity: 1;
     animation: letterOpen var(--dur-slow) var(--ease-out) both;
+}
+
+/* —— 信封袋 —— */
+.envelope-shell {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 30%;
+    bottom: 0;
+    z-index: 2;
+    background: linear-gradient(180deg, #fbf4ea, #f3e5d6);
+    border: 1px solid var(--hairline);
+    box-shadow: 0 10px 26px rgba(80, 50, 35, 0.1);
+}
+
+/* 信封袋的折角线（左上 / 右上 两道斜向压痕） */
+.envelope-shell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(to bottom right, transparent calc(50% - 0.5px), rgba(74, 58, 51, 0.12) 50%, transparent calc(50% + 0.5px)),
+        linear-gradient(to bottom left, transparent calc(50% - 0.5px), rgba(74, 58, 51, 0.12) 50%, transparent calc(50% + 0.5px));
+    background-size: 50% 100%, 50% 100%;
+    background-position: 0 0, 100% 0;
+    background-repeat: no-repeat;
+    pointer-events: none;
+}
+
+/* 火漆印 */
+.envelope-seal {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 34px;
+    height: 34px;
+    margin: -17px 0 0 -17px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #bb6860, var(--accent-deep) 68%);
+    box-shadow: 0 2px 5px rgba(80, 50, 35, 0.28), inset 0 -1px 2px rgba(0, 0, 0, 0.16);
+    transition: opacity 600ms ease, transform 600ms ease;
+}
+
+.envelope.is-open .envelope-seal {
+    opacity: 0.2;
+    transform: scale(0.84);
+}
+
+/* —— 翻盖 —— */
+.envelope-flap {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 70%;
+    z-index: 3;
+    background: linear-gradient(180deg, #f7eadd, #efdccb);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    transform-origin: 50% 0;
+    transform: rotateX(0deg);
+    /* z-index 用「0 时长 + 延迟」在翻到 ~103°（此时翻盖与信纸顶几乎等高）时切换，
+       避免翻盖在信纸升起的过程中压在信纸上面 —— 那一刻两者高度重合，切换不可见。 */
+    transition: transform 760ms cubic-bezier(0.5, 0, 0.2, 1), z-index 0s linear 480ms;
+}
+
+.envelope.is-open .envelope-flap {
+    transform: rotateX(118deg);
+    z-index: 0;
 }
 
 @keyframes letterOpen {
@@ -706,6 +1177,11 @@ body[data-step="celebration"] .celebration h2 {
     transition: border-color var(--dur-med) ease, opacity var(--dur-med) ease;
     opacity: 0.85;
     line-height: 1.2;
+    /* 触摸目标下限 44px（§30）：视觉仍是细药丸，但可点区域不缩水 */
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .music-btn:hover { border-color: var(--hairline-strong); opacity: 1; }
@@ -727,6 +1203,10 @@ body[data-step="celebration"] .celebration h2 {
     font-size: 0.85rem;
     letter-spacing: 0.1em;
     transition: color var(--dur-med) ease, border-color var(--dur-med) ease, background-color var(--dur-med) ease;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .share-btn:hover {
@@ -762,35 +1242,59 @@ body[data-step="celebration"] .celebration h2 {
 /* ---------- 响应式 ---------- */
 @media (max-width: 480px) {
     h1 { font-size: 1.5rem; }
-    .container { padding: var(--space-l) var(--space-m) var(--space-m); }
+    /* 顶部留出固定音乐胶囊的位置：否则它会压在章节进度线上 */
+    .container { padding-top: 60px; padding-right: var(--space-m); padding-bottom: var(--space-m); padding-left: var(--space-m); }
     .cute-btn { width: 100%; }
+    /* 文字型次级动作不占满整行，否则会和主按钮一样「重」 */
+    .cute-btn.text-action { width: auto; }
     .music-controls { top: var(--space-2xs); right: var(--space-2xs); }
     .photo-frame img, .photo-frame video { max-height: 42vh; }
     /* 选项窄屏单列：可点击文字永不换行（hallmark gate 49） */
     .option-group { grid-template-columns: minmax(0, 1fr); }
+    .editorial { padding: var(--space-m) 0 var(--space-s); }
+    .editorial-question { font-size: 1.16rem; line-height: 1.9; min-height: 5.7em; }
+    .instrument { width: 100%; padding: var(--space-2xs) var(--space-2xs) 0; }
+    .gauge-readout { font-size: 1.7rem; }
+    .note-slip { transform: rotate(-0.35deg); padding-left: 26px; }
+    .note-slip::before { left: 18px; }
+    .envelope-text { font-size: 0.9rem; line-height: 1.8; }
 }
 
 @media (max-width: 360px) {
     h1 { font-size: 1.35rem; }
     h2 { font-size: 1.05rem; }
-    .random-text { font-size: 1rem; }
-    .container { padding: var(--space-m) var(--space-s) var(--space-m); margin: var(--space-xs); }
+    .editorial-question { font-size: 1.08rem; }
+    .note-body { font-size: 0.95rem; line-height: 32px; background-image: repeating-linear-gradient(180deg, transparent 0, transparent 31px, rgba(74, 58, 51, 0.13) 31px, rgba(74, 58, 51, 0.13) 32px); }
+    .contact-cell { width: 48px; height: 48px; }
+    /* 注意：这里必须重新声明 padding-top（简写会覆盖 ≤480 的 60px），
+       否则照片章这种高内容会顶到音乐胶囊，进度线被压住 */
+    .container { padding: 60px var(--space-s) var(--space-m); margin: var(--space-xs); }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .petal,
     .question-section,
     .celebration,
-    .random-text.is-swapping,
+    .editorial-question.is-swapping,
+    .note-body.is-swapping,
     #extraLove,
     .photo-frame.is-loading::after,
     .photo-frame.is-revealing,
-    .surprise-text.is-on,
+    .envelope-text.is-on,
     .journey-line i {
         animation: none !important;
         transition: none !important;
     }
-    .surprise-text { transition: none; }
+    /* 仪表与信封：直接给终态，不做过渡 */
+    .gauge-needle,
+    .gauge-peak,
+    .gauge-fill { transition: none !important; }
+    .envelope-sheet,
+    .envelope-flap,
+    .envelope-seal { transition: none !important; }
+    .envelope-sheet { transform: translateY(-56%); }
+    .envelope-flap { transform: rotateX(118deg); z-index: 0; }
+    .envelope-seal { opacity: 0.2; }
     ::view-transition-group(*),
     ::view-transition-old(*),
     ::view-transition-new(*) { animation: none !important; }
