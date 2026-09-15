@@ -2,3 +2,7 @@ visual-prototype/
 Thumbs.db
 .DS_Store
 .zcode/
+
+# QA 运行产物（tools/qa 里的脚本与 steps 是资产，生成的 batch JSON 不是）
+tools/qa/*.batch.json
+/tmp-qa/

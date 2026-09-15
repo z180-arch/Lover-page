@@ -1,0 +1,25 @@
+# 分享链接往返测试 + 390x844 走查
+open http://127.0.0.1:8899/index.html
+set viewport 390 844
+wait 2200
+@share
+!click #introEnter
+wait 2500
+@diag
+!eval window.appState.setState({currentStep:6})
+wait 1400
+screenshot
+@check
+!eval window.appState.setState({currentStep:5})
+wait 900
+screenshot
+!eval window.appState.setState({currentStep:4})
+wait 900
+screenshot
+!eval window.appState.setState({currentStep:3})
+wait 900
+screenshot
+!eval window.appState.setState({currentStep:'celebration'})
+wait 1400
+screenshot
+@check

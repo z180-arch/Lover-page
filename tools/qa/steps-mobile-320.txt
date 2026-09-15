@@ -1,0 +1,52 @@
+# 320x568（最小目标机型）完整流程走查
+open http://127.0.0.1:8899/index.html
+set viewport 320 568
+wait 2200
+screenshot
+!click #introEnter
+wait 2400
+screenshot
+@diag
+!click #homeStartBtn
+wait 800
+screenshot
+@diag
+!click #quizOptions .option-btn:nth-child(3)
+wait 600
+screenshot
+!click #quizNextBtn
+wait 800
+screenshot
+@diag
+!click #meterNextBtn
+wait 1400
+screenshot
+@diag
+!click #questionNextBtn
+wait 800
+screenshot
+@diag
+!click #smallThingNextBtn
+wait 800
+screenshot
+@diag
+!click #photoNextBtn
+wait 1000
+screenshot
+@diag
+!click #letterNextBtn
+wait 1000
+screenshot
+@diag
+!click #surpriseBtn
+wait 1200
+screenshot
+@diag
+!click #surpriseNextBtn
+wait 1400
+screenshot
+@diag
+!click #replayBtn
+wait 2400
+screenshot
+@diag

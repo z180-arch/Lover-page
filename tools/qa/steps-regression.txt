@@ -1,0 +1,32 @@
+# 320x568 回归验证：闭合信封 / 音乐胶囊 / 触摸目标
+open http://127.0.0.1:8899/index.html
+set viewport 320 568
+wait 2200
+screenshot
+!click #introEnter
+wait 2500
+@diag
+!eval window.appState.setState({currentStep:8})
+wait 800
+screenshot
+@check
+!click #surpriseBtn
+wait 1400
+screenshot
+@check
+!click #surpriseAgainBtn
+wait 1200
+screenshot
+@check
+!eval window.appState.setState({currentStep:5})
+wait 800
+screenshot
+@check
+!eval window.appState.setState({currentStep:6})
+wait 1200
+screenshot
+@check
+!eval window.appState.setState({currentStep:4})
+wait 800
+screenshot
+@check
