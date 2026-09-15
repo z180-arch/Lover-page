@@ -1,0 +1,131 @@
+# 主题三态全量核对（390×844）—— 令牌 / 溶解 / 旅程 / 触摸 / 报错
+#
+# 前置：python -m http.server 8899 --bind 127.0.0.1
+# 运行：node tools/qa/build-batch.js .qa-out/theme.batch.json tools/qa/steps-theme-check.txt
+#       agent-browser batch < .qa-out/theme.batch.json
+#
+# ⚠️ 为什么用 appState.setState 巡章而不是连点按钮：
+#    连点链路依赖「动画结束」的固定等待，实测量到 flaky —— 390×844 下主题间只差
+#    几百毫秒的 wait，就会在章节切换瞬间点到 0×0 的按钮上，于是断言全部假失败。
+#    这里改为状态驱动：每章都进、每章都断言，覆盖更全且完全确定。
+#    真实点击的最小证明放在 steps-regression.txt（320×568 分步走完信封全流程）。
+
+open http://127.0.0.1:8899/index.html
+set viewport 390 844
+wait 2600
+@probe
+@theme
+@diag
+!eval window.__lpErrors.join(" ;; ") || "no-errors"
+screenshot
+!click #introEnter
+wait 2800
+@theme
+!eval window.appState.setState({currentStep:2}); "ok"
+wait 700
+@theme
+!eval window.appState.setState({currentStep:3}); "ok"
+wait 1200
+@theme
+!eval window.appState.setState({currentStep:4}); "ok"
+wait 700
+@theme
+!eval window.appState.setState({currentStep:5}); "ok"
+wait 700
+@theme
+!eval window.appState.setState({currentStep:6}); "ok"
+wait 1400
+@theme
+!eval window.appState.setState({currentStep:7}); "ok"
+wait 900
+@theme
+!eval window.appState.setState({currentStep:8}); "ok"
+wait 900
+@theme
+!eval window.appState.setState({currentStep:'celebration'}); "ok"
+wait 1200
+@theme
+screenshot
+!eval window.__lpErrors.join(" ;; ") || "no-errors"
+
+open http://127.0.0.1:8899/index.html?theme=night-archive
+set viewport 390 844
+wait 2600
+@probe
+@theme
+@diag
+!eval window.__lpErrors.join(" ;; ") || "no-errors"
+screenshot
+!click #introEnter
+wait 2800
+@theme
+!eval window.appState.setState({currentStep:2}); "ok"
+wait 700
+@theme
+!eval window.appState.setState({currentStep:3}); "ok"
+wait 1200
+@theme
+!eval window.appState.setState({currentStep:4}); "ok"
+wait 700
+@theme
+!eval window.appState.setState({currentStep:5}); "ok"
+wait 700
+@theme
+!eval window.appState.setState({currentStep:6}); "ok"
+wait 1400
+@theme
+!eval window.appState.setState({currentStep:7}); "ok"
+wait 900
+@theme
+!eval window.appState.setState({currentStep:8}); "ok"
+wait 900
+@theme
+!eval window.appState.setState({currentStep:'celebration'}); "ok"
+wait 1200
+@theme
+screenshot
+!eval window.__lpErrors.join(" ;; ") || "no-errors"
+
+open http://127.0.0.1:8899/index.html?theme=modern-paper
+set viewport 390 844
+wait 2600
+@probe
+@theme
+@diag
+!eval window.__lpErrors.join(" ;; ") || "no-errors"
+screenshot
+!click #introEnter
+wait 2800
+@theme
+!eval window.appState.setState({currentStep:2}); "ok"
+wait 700
+@theme
+!eval window.appState.setState({currentStep:3}); "ok"
+wait 1200
+@theme
+!eval window.appState.setState({currentStep:4}); "ok"
+wait 700
+@theme
+!eval window.appState.setState({currentStep:5}); "ok"
+wait 700
+@theme
+!eval window.appState.setState({currentStep:6}); "ok"
+wait 1400
+@theme
+!eval window.appState.setState({currentStep:7}); "ok"
+wait 900
+@theme
+!eval window.appState.setState({currentStep:8}); "ok"
+wait 900
+@theme
+!eval window.appState.setState({currentStep:'celebration'}); "ok"
+wait 1200
+@theme
+screenshot
+!eval window.__lpErrors.join(" ;; ") || "no-errors"
+
+# —— 未知主题名的兜底（必须退回 warm-paper 且不崩） ——
+open http://127.0.0.1:8899/index.html?theme=does-not-exist
+wait 2600
+@theme
+!eval window.__lpErrors.join(" ;; ") || "no-errors"

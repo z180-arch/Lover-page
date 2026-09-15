@@ -1,0 +1,44 @@
+open http://127.0.0.1:8899/index.html
+set viewport 390 844
+wait 2200
+!click #introEnter
+wait 2600
+!eval window.appState.setState({currentStep:5}); "ok"
+wait 900
+@contrast
+!eval window.appState.setState({currentStep:6}); "ok"
+wait 1400
+@contrast
+!eval window.appState.setState({currentStep:'celebration'}); "ok"
+wait 1000
+@contrast
+
+open http://127.0.0.1:8899/index.html?theme=night-archive
+set viewport 390 844
+wait 2200
+!click #introEnter
+wait 2800
+!eval window.appState.setState({currentStep:5}); "ok"
+wait 900
+@contrast
+!eval window.appState.setState({currentStep:7}); "ok"
+wait 900
+@contrast
+!eval window.appState.setState({currentStep:'celebration'}); "ok"
+wait 1000
+@contrast
+
+open http://127.0.0.1:8899/index.html?theme=modern-paper
+set viewport 390 844
+wait 2200
+!click #introEnter
+wait 2600
+!eval window.appState.setState({currentStep:5}); "ok"
+wait 900
+@contrast
+!eval window.appState.setState({currentStep:6}); "ok"
+wait 1400
+@contrast
+!eval window.appState.setState({currentStep:'celebration'}); "ok"
+wait 1000
+@contrast

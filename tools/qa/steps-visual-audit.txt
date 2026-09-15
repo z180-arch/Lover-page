@@ -1,0 +1,39 @@
+# 视觉审计：全流程逐章截图（390×844，产物写入 .qa-out/）
+# 用途：任何视觉改动前后各跑一次，用图片对比而不是靠记忆。
+# 前置：python -m http.server 8899 --bind 127.0.0.1
+# 运行：tools/qa/run.sh steps-visual-audit.txt
+open http://127.0.0.1:8899/index.html
+set viewport 390 844
+wait 2400
+screenshot .qa-out/a01-intro-390.png
+!click #introEnter
+wait 2600
+screenshot .qa-out/a02-home-390.png
+!click #homeStartBtn
+wait 900
+screenshot .qa-out/a03-quiz-390.png
+!click #quizOptions .option-btn:nth-child(3)
+wait 600
+!click #quizNextBtn
+wait 900
+screenshot .qa-out/a04-meter-390.png
+!click #meterNextBtn
+wait 1500
+screenshot .qa-out/a05-question-390.png
+!click #questionNextBtn
+wait 900
+screenshot .qa-out/a06-smallthing-390.png
+!click #smallThingNextBtn
+wait 900
+screenshot .qa-out/a07-photos-390.png
+!click #photoNextBtn
+wait 2000
+screenshot .qa-out/a08-letter-390.png
+!click #letterNextBtn
+wait 900
+screenshot .qa-out/a09-surprise-390.png
+!click #surpriseBtn
+wait 900
+!click #surpriseNextBtn
+wait 1400
+screenshot .qa-out/a10-celebration-390.png
