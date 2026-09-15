@@ -116,9 +116,26 @@ Internet Archive、Rawpixel Public Domain。
 
 ## Migration
 
-**本轮未改动 media 数据结构**（避免与主题层改动混在一起，违反「分阶段独立提交」）。
-已完成的相邻工作：照片章的面板溶解（section 6 在 `night-archive` 下溶解，
-让照片直接落在背景上）已由 ADR-003 的 `container.dissolveSteps` 覆盖。
+**本轮（1.4.0）已完成本 ADR 指定的实施起点**：
 
-**下一轮第一优先项**：`width`/`height`/`focalPoint` 三个字段 + renderer 消费 +
-`docs/MEDIA_GUIDE.md` 更新。这是本 ADR 明确指定的实施起点。
+- `photos[]` 新增 `width` / `height` / `alt` / `focalPoint:{x,y}`；
+  8 张默认图按 **实测原始像素** 填写（`node tools/media/image-dims.js`，零依赖头解析）。
+  实测这 8 张图比例并不统一（1.50 / 1.68 / 1.78）—— 这直接证实了「切图会顶动下方内容」
+  不是理论担忧。
+- renderer：`<img>` 写原生 `width`/`height`（下载完成前即预留高度）+
+  `loading="lazy"` + `decoding="async"`；`focalPoint` → `--photo-focus` → `object-position`（渲染层夹取 0~100）。
+- `docs/MEDIA_GUIDE.md`：照片一节改成字段表，补「尺寸不要手写猜，跑 `image-dims`」。
+- 契约：`docs/architecture/CONFIG_CONTRACT.md` §6.4 逐字段登记（含读取方）。
+
+**同时发现并修掉一处本 ADR 未涉及的缺陷**：`renderPhoto()` 是唯一没有走 `esc()` 的
+renderer，5 处配置值直接拼进 `innerHTML` —— 而 `photos` 可经 `?conf=` 从 URL 进入，
+这是一个真实可达的注入面。已修复，并新增 `tools/qa/innerhtml-guard.js` 静态守卫。
+
+**仍未做（下一轮）**：`srcset` / AVIF 多分辨率管道。
+调研结论（`docs/research/MEDIA_SCHEMA_RESEARCH.md`）：**8 张本地 jpg 不值得**
+—— 4 个 MIT 候选（vanilla-lazyload / lazysizes / smartcrop.js / lozad.js）全部不采用，
+原生属性 + `object-position` 就是完整解。触发条件：照片超过 50 张，或需要离线预处理时。
+
+**已解锁的相邻决策**：`vendor/GLightbox` 当初选它而非 PhotoSwipe v5，原因正是
+「PhotoSwipe 要求预先提供图片尺寸」——现在 `width`/`height` 已就位，
+下次做照片章时值得重新评估（见 `docs/research/OPEN_SOURCE_REFERENCE_INDEX.md` §5）。

@@ -87,6 +87,20 @@ Content → Media → Story → Interaction → Experience → Theme → Templat
 
 - 已完成：`experience.chapters` 声明化；kicker 章名改为读 config；
   `showNextQuestion()` 同时尊重 `enabled` 与「内容为空」两种跳过原因。
-- 未完成：独立的语义校验层（`config-validate.js`）。
-  当前 `script.js` 的 `validateConfig()` 只覆盖 `colors` hex 与 `animations` 范围。
-  **这是下一轮明确的第一优先项**，已写入 `CURRENT_STATE.md`。
+- **已完成（1.4.0）：语义校验层落地。** 但它没有按本 ADR 的设想拆成
+  `config-validate.js` —— 而是并入了 `config-system.js`，因为这个文件的职责本来就是
+  「不可信输入的校验 + 合并」，在校验与合并之间再插一层文件边界收益很小。
+  新增的能力：
+  - **严格 schema 校验**：未知字段 / 类型不符 / 危险键一律拒绝，每个拒绝都带路径与理由
+  - **原型污染防护**（三层）—— 这轮实测发现旧的 `sanitize()` 顺序下污染**真的成立**
+  - **`window.LPDiagnostics`** 诊断通道（`diagnostics.js`），7 个区域、有上限、绝不抛异常
+  - **可执行回归**：`tools/qa/config-suite.js` 99 断言（vm 独立 realm）
+  - **权威契约文档**：`docs/architecture/CONFIG_CONTRACT.md`（8 个 Schema 逐字段表）
+
+  教训已写进 `CURRENT_STATE.md` 与 `ARCHITECTURE.md`：本 ADR 原先把
+  「schema 驱动校验」记为已完成，但那条结论**没有任何断言支撑** ——
+  这轮把它写成断言才发现「拒绝未知字段」从未真正成立。
+  **没有断言支撑的结论只是措辞**，这条已升级为项目工作约定。
+- 未完成：`script.js` 里遗留的 `validateConfig()`（只覆盖 `colors` hex 与 `animations` 范围）。
+  它与 `config-system.js` 的严格校验职责重叠，且校验的是**运行时源码**而非不可信输入 ——
+  建议在下一次动 config 相关代码时合并或删除，不要让它长期并存（会造成「到底谁在校验」的混乱）。

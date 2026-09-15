@@ -302,9 +302,11 @@ const loveMeter = document.getElementById('loveMeter');
 const loveValue = document.getElementById('loveValue');
 const extraLove = document.getElementById('extraLove');
 
-/* 仪表几何与绘制已抽到 js/chapters/gauge.js。这里保留同名薄封装，
- * 让散落在本文件里的调用点与 DOMContentLoaded 初始化不用改。 */
-const gaugeAngleFor = (v) => window.LPGauge.angleFor(v);
+/* 仪表几何与绘制已抽到 js/chapters/gauge.js（window.LPGauge）。
+ * 这里只镜像本文件里**真正还在用**的四个名字 —— 薄封装是为了让既有调用点与
+ * DOMContentLoaded 初始化不用改，不是为了给每个导出都起个别名。
+ * 需要 angleFor / GEOMETRY / polar / fmt 时直接写 window.LPGauge.*，
+ * 不要再往这里加别名（没有调用方的别名会让下一个人误以为有人在用）。 */
 const buildGaugeTicks = () => window.LPGauge.buildTicks();
 const updateGauge = (v) => window.LPGauge.update(v);
 const resetGaugePeak = () => window.LPGauge.resetPeak();

@@ -11,7 +11,8 @@ Runtime 是零构建的纯静态单页：`index.html` 顺序加载若干 classic
 靠全局变量互相通信（`window.VALENTINE_CONFIG` / `window.appState` / `window.LPTheme`），
 页面内还用 `onclick="showNextQuestion(2)"` 这类内联事件处理器。
 
-`script.js` 当前 **948 行**（39 KB），承担：config 校验、DOM 文案填充、
+`script.js` 当前 **948 行**（39 KB，拆分第一层后 941 行 —— 见 §Migration 的实施记录），
+承担：config 校验、DOM 文案填充、
 漂浮元素生成、章节路由与跳过、默契测试、仪表几何与刻度、随机问题、随机小任务、
 照片（渲染 + GLightbox 灯箱 + 联系印样）、信件（渲染 + 语音播放）、Web Audio 合成音效、
 随机惊喜、落幕与花瓣迸发、重玩复位、音乐播放器、分享按钮。
@@ -72,5 +73,41 @@ Runtime 是零构建的纯静态单页：`index.html` 顺序加载若干 classic
 `script.js` 里的「主题解析」职责收拢到一个有明确契约的文件，并暴露
 `window.LPTheme.current()` 作为唯一查询入口。
 
-未实施（留给后续）：`Sound` 与仪表几何的提取。触发条件 = 需要改这两块，
+### 实施记录 · 第一层（2026-09-15，CHANGELOG 1.4.0）
+
+已拆出两个模块，`script.js` 948 → **941 行**：
+
+| 模块 | 命名空间 | 内容 | 为什么它符合「无 DOM / 无隐式依赖 / 可独立测试」 |
+|---|---|---|---|
+| `js/core/text.js` | `window.LPText` | `esc` / `textPool` / `pickRandom` | 纯字符串函数。**本 ADR 原先没把它列为候选** —— 是这轮审计发现 `esc()` 是全项目唯一的安全边界、而它当时藏在一个 941 行的文件里、没有任何测试。安全边界必须能独立测试，这个理由比「行数」强 |
+| `js/chapters/gauge.js` | `window.LPGauge` | 刻度盘几何与计算（`GEOMETRY` / `angleFor` / `polar` / `fillPercent` / `fmt` / `buildTicks` / `update` / `resetPeak`） | 纯数学 + 有限的 SVG 拼装，与 config/DOM 无耦合 |
+
+**兼容层的实际做法（与 §Decision 3 的方向相反，但结论一致）**：不是「拆出去的模块
+显式注册回全局」，而是**新模块挂自己的命名空间，`script.js` 保留薄封装**：
+
+```js
+const esc = window.LPText.esc;                            // 值
+const buildGaugeTicks = () => window.LPGauge.buildTicks(); // 函数：包一层，不直接赋引用
+```
+
+理由：内联 `onclick="showNextQuestion(2)"` 依赖的全局函数名**本来就没有被移动**
+（它们全留在 `script.js`，见 §Decision 2「不拆章节 renderer」），所以「保留全局名」
+这条约束在这两个模块上并不适用 —— 需要保持的是**本文件内的调用点**不用改。
+包一层而不是直接赋引用，是为了避免将来换实现时旧引用被缓存住。
+
+同时移除了一条**没有被保留价值的兼容别名**：`gaugeAngleFor` 在拆分后没有任何调用方，
+留着一个无人使用的别名会让下一个人误以为有人在用。已在文件里写明
+「需要 `angleFor` 时直接写 `window.LPGauge.angleFor`，不要再往 `script.js` 加别名」。
+
+**拆分直接暴露了一个真实缺陷**：`fillPercent(NaN)` 返回 `NaN`（`Math.min/max(NaN)` 仍是 `NaN`），
+于是 `strokeDasharray="NaN 100"` —— 弧线会**静默画不出来**，没有报错、没有可见异常。
+`tools/qa/module-suite.js` 现在用 63 条断言锁住这类「静默失败」。
+
+**未实施（留给后续）**：`Sound`（Web Audio 合成微音效）的提取。触发条件 = 需要改它，
 或 `script.js` 接近 1400 行。
+
+**下一步的拆分候选**（按 ADR 的准入条件筛过）：照片渲染（`renderPhoto` /
+`photoMediaHtml` / `photoFocus` / `buildContactSheet`）—— 它有明确的输入（`config.photos`）
+与输出（DOM 字符串），且已经有独立的浏览器批次 `steps-config-security.txt` 覆盖，
+是下一个「可独立回归」的合理单位。
+
