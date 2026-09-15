@@ -6,10 +6,26 @@
     <meta name="theme-color" content="#f7ece2" />
     <!-- CUSTOMIZE: Browser tab title（由 config.js 的 pageTitle 覆盖） -->
     <title>和你一起玩 💕</title>
+    <!-- QA 探针：记录运行时错误，供 tools/qa 的自动化断言读取（不参与渲染，无副作用）。
+         没有这个，初始化中途抛错在真实浏览器里只会表现为「某些文案没被填充」，很难定位。 -->
+    <script>
+      window.__lpErrors = [];
+      window.addEventListener('error', function (e) {
+        if (window.__lpErrors.length < 20) {
+          window.__lpErrors.push((e.message || 'error') + ' @' +
+            String(e.filename || '').split('/').pop() + ':' + e.lineno);
+        }
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        if (window.__lpErrors.length < 20) {
+          window.__lpErrors.push('unhandledrejection: ' + (e.reason && e.reason.message || e.reason));
+        }
+      });
+    </script>
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css?v=13" />
-    <link rel="stylesheet" href="css/intro.css?v=13" />
-    <link rel="stylesheet" href="vendor/glightbox.min.css?v=13" />
+    <link rel="stylesheet" href="styles.css?v=17" />
+    <link rel="stylesheet" href="css/intro.css?v=17" />
+    <link rel="stylesheet" href="vendor/glightbox.min.css?v=17" />
   </head>
   <body class="intro-active">
     <!-- Site 级动态背景（第一屏与后续页面共用，js/intro.js 驱动） -->
@@ -216,12 +232,17 @@
     </div>
 
     <!-- Scripts -->
-    <script src="config.js?v=13"></script>
-    <script src="config-system.js?v=13"></script>
-    <script src="state.js?v=13"></script>
-    <script src="theme.js?v=13"></script>
-    <script src="vendor/glightbox.min.js?v=13"></script>
-    <script src="script.js?v=13"></script>
-    <script type="module" src="js/intro.js?v=13"></script>
+    <!-- 主题 preset 必须先于 config：theme.js 要拿注册表解析 metadata.template 与 ?theme= -->
+    <script src="themes/warm-paper.js?v=17"></script>
+    <script src="themes/night-archive.js?v=17"></script>
+    <script src="themes/modern-paper.js?v=17"></script>
+    <script src="themes/index.js?v=17"></script>
+    <script src="config.js?v=17"></script>
+    <script src="config-system.js?v=17"></script>
+    <script src="state.js?v=17"></script>
+    <script src="theme.js?v=17"></script>
+    <script src="vendor/glightbox.min.js?v=17"></script>
+    <script src="script.js?v=17"></script>
+    <script type="module" src="js/intro.js?v=17"></script>
   </body>
 </html>

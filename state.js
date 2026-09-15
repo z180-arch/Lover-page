@@ -4,7 +4,7 @@
  */
 
 window.appState = {
-    currentStep: 1, // 1~7, or 'celebration'
+    currentStep: 1, // 1~8（1 = 序，8 = 惊喜）, or 'celebration'
     isMusicPlaying: false,
     loveValue: 100,
 
@@ -37,15 +37,41 @@ const DEFAULT_JOURNEY = {
     celebration: { label: '终', progress: 100 }
 };
 
-function journeyFor(step) {
+/* 章节声明表（config.experience.chapters）。空 = 用内置默认。—— 本章唯一来源 */
+function chapterList() {
     const cfg = window.VALENTINE_CONFIG;
     const chapters = cfg && cfg.experience && cfg.experience.chapters;
-    if (chapters && chapters.length) {
-        const c = chapters.find(function (c) { return String(c.step) === String(step); });
-        if (c) return { label: c.label, progress: c.progress };
-    }
+    return Array.isArray(chapters) && chapters.length ? chapters : [];
+}
+
+function chapterFor(step) {
+    return chapterList().find(function (c) { return String(c.step) === String(step); }) || null;
+}
+
+/* 章节是否启用。config 没声明 = 启用（保持 v1 行为）。 */
+function chapterEnabled(step) {
+    const c = chapterFor(step);
+    return c ? c.enabled !== false : true;
+}
+
+function journeyFor(step) {
+    const c = chapterFor(step);
+    if (c && c.label) return { label: c.label, progress: c.progress };
     return DEFAULT_JOURNEY[step] || DEFAULT_JOURNEY[1];
 }
+
+/* 面板溶解：主题决定哪些章节的内容直接落在背景上（见 themes/*.js container.dissolveSteps） */
+function syncDissolve(step) {
+    if (!document.body) return;
+    const on = window.LPTheme && typeof window.LPTheme.shouldDissolve === 'function'
+        ? window.LPTheme.shouldDissolve(step)
+        : String(step) === 'celebration';
+    document.body.dataset.dissolve = on ? '1' : '0';
+}
+
+window.chapterEnabled = chapterEnabled;
+window.chapterFor = chapterFor;
+window.syncDissolve = syncDissolve;
 
 /* DOM 变更包一层同文档 View Transitions（Baseline 2025.10），
    不支持的浏览器直接切换（现有 sectionIn 动画仍是兜底） */
@@ -84,6 +110,9 @@ window.appState.subscribe((state, oldState) => {
         const fill = document.getElementById('journeyFill');
         if (label) label.textContent = chapter.label;
         if (fill) fill.style.setProperty('--journey-progress', chapter.progress + '%');
+
+        // 面板溶解（主题驱动：该章内容直接落在背景上，不再有卡片包裹）
+        syncDissolve(state.currentStep);
     }
 
     // Handle music state

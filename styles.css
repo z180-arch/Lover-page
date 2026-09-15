@@ -6,11 +6,20 @@
  */
 
 :root {
+    /* ==========================================================================
+     * 本块是 **warm-paper 主题的兜底值**，不是主题开关。
+     * 运行时由 theme.js 依据 themes/*.js 的 preset 整体覆盖（含 config.theme 的
+     * 实例级覆盖）。新增主题请改 themes/ 下的 preset，不要改这里 ——
+     * 改这里只会让「主题没加载成功」时的兜底长相变掉。
+     * 详见 docs/design/THEME_REGISTRY.md 与 ADR-003。
+     * ========================================================================*/
+
     /* ---------- surfaces ---------- */
     --paper: #fdf9f4;
     --paper-2: #f7ece2;
     --paper-3: #f3d5cb;
-    --panel: rgba(255, 251, 246, 0.9);
+    --panel: #fffbf6;
+    --panel-alt: #fdfaf3;
 
     /* ---------- ink ----------
      * 三档墨色全部用实色而不是 rgba alpha：
@@ -21,6 +30,11 @@
     --ink: #4a3a33;
     --ink-soft: #6b5a52;
     --ink-faint: #7a6a62;
+    --ink-muted: #8d7c72;   /* 纯装饰用，不承载文本语义 */
+    /* 落在背景画布（mesh gradient）上的小字专用档。
+     * 面板溶解 / 无面板主题下，文字会直接压在 canvas 上，而 canvas 最深色比 --paper 暗，
+     * --ink-faint 在那个位置只有 3.74:1（不过 AA）。所以「在纸上」和「在画布上」必须分开标定。 */
+    --ink-canvas: #6b5a52;
 
     /* ---------- accent ---------- */
     --accent: #a8544f;
@@ -38,11 +52,61 @@
     /* ---------- lines ---------- */
     --hairline: rgba(74, 58, 51, 0.14);
     --hairline-strong: rgba(74, 58, 51, 0.3);
+    --ink-line: rgba(74, 58, 51, 0.13);   /* 便签横格 / 信纸格线 */
 
     /* ---------- type ---------- */
+    --font-display: 'Noto Serif SC', 'Songti SC', 'STSong', 'Source Han Serif SC',
+      'SimSun', Georgia, serif;
     --font-body: 'Noto Serif SC', 'Songti SC', 'STSong', 'Source Han Serif SC',
       'SimSun', Georgia, serif;
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+      'Microsoft YaHei', sans-serif;
+    --font-mono: 'SF Mono', 'Cascadia Mono', Consolas, 'Courier New', monospace;
     --font-outlier: Georgia, 'Times New Roman', serif;
+
+    /* 字号尺度：所有章节标题/正文/展签/folio 只准引用这些，禁止散落 px */
+    --fs-display-xl: clamp(30px, 8.6vw, 46px);
+    --fs-display-lg: clamp(24px, 6.4vw, 34px);
+    --fs-heading: clamp(19px, 4.6vw, 24px);
+    --fs-body-lg: 17px;
+    --fs-body: 15.5px;
+    --fs-body-sm: 13.5px;
+    --fs-caption: 12.5px;
+    --fs-label: 11px;
+    --fs-folio: 10.5px;
+    --fw-display: 500;
+    --fw-heading: 600;
+    --fw-body: 400;
+    --track-display: 0.04em;
+    --track-label: 0.22em;
+    --track-folio: 0.14em;
+
+    /* ---------- container（章节外框形态：主题差异最直观处） ---------- */
+    --panel-bg: #fffbf6;
+    --panel-border: 1px solid rgba(74, 58, 51, 0.07);
+    --panel-radius: 14px;
+    --panel-shadow: 0 18px 60px rgba(80, 50, 35, 0.13);
+    --panel-pad: 28px 22px;
+    --shadow-panel: 0 18px 60px rgba(80, 50, 35, 0.13);
+    --grain-opacity: 0.05;
+    --mesh-1: #f7ece2;
+    --mesh-2: #f3d5cb;
+    --mesh-3: #f7ddc0;
+    --mesh-4: #f2e6d9;
+    --petal-hi: #dda3ab;
+    --petal-lo: #c4777f;
+
+    /* ---------- 纸张材质（便签 / 信纸 / 信封内页 / 编辑设计版面） ----------
+     * 这些是「纸」而不是「面」，所以单独一组：主题需要能整体换成
+     * 深色纸或冷白纸，否则暗色主题下会出现发光的白纸。 */
+    --sheet-bg: linear-gradient(180deg, #fdfaf3, #f7eadd);
+    --flap-bg: linear-gradient(180deg, #f7eadd, #efdccb);
+    --tape: rgba(238, 222, 198, 0.66);
+    --wash: rgba(255, 253, 250, 0.78);
+    --wash-2: rgba(247, 236, 226, 0.42);
+    --wash-hi: rgba(255, 255, 255, 0.72);
+    --seal: #bb6860;
+    --accent-line: rgba(168, 84, 79, 0.26);
 
     /* ---------- space (4px base) ---------- */
     --space-3xs: 4px;
@@ -153,15 +217,21 @@ body {
     100% { opacity: 0; transform: translate3d(var(--fall-distance, 40px), 60vh, 0) rotate(260deg) scale(0.4); }
 }
 
-/* ---------- 主容器（章节舞台） ---------- */
+/* ---------- 主容器（章节舞台） ----------
+ * 形态完全由主题令牌决定（--panel-*）：
+ *   warm-paper    → 白卡 + 阴影
+ *   night-archive → 深色亚光卡 + 1px 暖边
+ *   modern-paper  → transparent / none / 0 → 面板不存在，内容直接落在纸面
+ * 因此「换主题」改变的是**构图**，不只是配色。
+ */
 .container {
     position: relative;
     z-index: 3;
-    background: var(--panel);
-    border: 1px solid var(--hairline);
+    background: var(--panel-bg);
+    border: var(--panel-border);
     padding: var(--space-xl) var(--space-l) var(--space-l);
-    border-radius: 4px;
-    box-shadow: var(--shadow-card);
+    border-radius: var(--panel-radius);
+    box-shadow: var(--panel-shadow);
     text-align: center;
     width: 90%;
     max-width: 560px;
@@ -169,7 +239,10 @@ body {
     view-transition-name: stage;
 }
 
-/* 庆祝：落幕时卡片隐去，文字直接浮在渐变上（电影结尾） */
+/* 面板溶解：该章节的内容直接落在背景上（不再有卡片包裹）。
+ * 由 state.js 依主题的 container.dissolveSteps 设置 body[data-dissolve="1"]。
+ * 落幕页（celebration）在所有主题下都溶解 —— 那是「电影结尾」的既定语言。 */
+body[data-dissolve="1"] .container,
 body[data-step="celebration"] .container {
     background: transparent;
     border-color: transparent;
@@ -186,9 +259,9 @@ body[data-step="celebration"] .container {
 
 .journey-label {
     font-family: var(--font-outlier);
-    font-size: 11px;
-    letter-spacing: 0.22em;
-    color: var(--ink-faint);
+    font-size: var(--fs-label);
+    letter-spacing: var(--track-label);
+    color: var(--ink-canvas);
     line-height: 1;
     white-space: nowrap;
 }
@@ -210,30 +283,39 @@ body[data-step="celebration"] .container {
     transition: width var(--dur-slow) var(--ease-out);
 }
 
-/* ---------- 章节 kicker（编号垂直叠在标题上方，禁左右分栏） ---------- */
+/* ---------- 章节 kicker ----------
+ * 分工（避免重复）：.journey-label 负责**编号与进度**，本章 kicker 只负责**章名**。
+ * v1 里两处同时印「壹」，是纯粹的视觉冗余。
+ * 章名文本来自 config.experience.chapters[].title（见 CONFIG_SCHEMA.md）。
+ */
 .chapter-kicker {
     font-family: var(--font-outlier);
-    font-size: 11px;
-    letter-spacing: 0.3em;
+    font-size: var(--fs-label);
+    letter-spacing: var(--track-label);
     color: var(--accent);
     margin-bottom: var(--space-s);
     line-height: 1;
 }
 
-/* ---------- 排版 ---------- */
+/* ---------- 排版 ----------
+ * 标题与正文只引用字号/字体令牌（--fs-* / --font-*），
+ * 因此换主题时层级关系会整体改变，而不是只有颜色变。
+ */
 h1 {
-    font-weight: 400;
-    font-size: clamp(1.6rem, 2.5vw, 2.1rem);
+    font-family: var(--font-display);
+    font-weight: var(--fw-display);
+    font-size: var(--fs-display-lg);
     color: var(--accent);
     margin: 0 0 var(--space-s);
-    letter-spacing: 0.06em;
+    letter-spacing: var(--track-display);
     overflow-wrap: anywhere;
     min-width: 0;
 }
 
 h2 {
-    font-weight: 400;
-    font-size: clamp(1.15rem, 2vw, 1.45rem);
+    font-family: var(--font-display);
+    font-weight: var(--fw-body);
+    font-size: var(--fs-heading);
     color: var(--ink);
     margin: 0 0 var(--space-l);
     letter-spacing: 0.12em;
@@ -531,23 +613,28 @@ h2 {
     cursor: pointer;
 }
 
+/* 滑块：量程的「输入层」，刻意比仪表盘更安静 ——
+ * 视觉重心必须落在指针读数上，而不是这个控件本身。
+ * 轨道用令牌而不是硬编码 rgba（主题切换时轨道要跟着走）。 */
 .slider::-webkit-slider-runnable-track {
     height: 2px;
-    background: linear-gradient(90deg, var(--accent-soft), rgba(168, 84, 79, 0.65));
+    background: linear-gradient(90deg, var(--accent-soft), var(--accent));
     border-radius: 1px;
+    opacity: 0.85;
 }
 
 .slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 22px;
-    height: 22px;
-    margin-top: -10px;
-    background: var(--accent);
+    width: 18px;
+    height: 18px;
+    margin-top: -8px;
+    background: var(--paper);
     cursor: pointer;
     border-radius: 50%;
-    border: 3px solid var(--paper);
-    box-shadow: var(--shadow-thumb);
+    /* 空心环 + 实心中点：像仪器的旋钮而不是一颗红球 */
+    border: 2px solid var(--accent);
+    box-shadow: inset 0 0 0 3px var(--paper), inset 0 0 0 5px var(--accent);
     transition: transform var(--dur-fast) ease;
 }
 
@@ -555,18 +642,19 @@ h2 {
 
 .slider::-moz-range-track {
     height: 2px;
-    background: linear-gradient(90deg, var(--accent-soft), rgba(168, 84, 79, 0.65));
+    background: linear-gradient(90deg, var(--accent-soft), var(--accent));
     border-radius: 1px;
+    opacity: 0.85;
 }
 
 .slider::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    background: var(--accent);
+    width: 14px;
+    height: 14px;
+    background: var(--paper);
     cursor: pointer;
     border-radius: 50%;
-    border: 3px solid var(--paper);
-    box-shadow: var(--shadow-thumb);
+    border: 2px solid var(--accent);
+    box-shadow: inset 0 0 0 2px var(--paper), inset 0 0 0 4px var(--accent);
 }
 
 #loveValue {
@@ -683,7 +771,7 @@ h2 {
     width: min(360px, 100%);
     margin: var(--space-m) auto var(--space-l);
     padding: var(--space-m) var(--space-s) var(--space-s) 30px;
-    background-color: #fdfaf3;
+    background-color: var(--sheet-bg);
     border: 1px solid var(--hairline);
     box-shadow: var(--shadow-card);
     transform: rotate(-0.5deg);
@@ -698,7 +786,7 @@ h2 {
     bottom: 0;
     left: 22px;
     width: 1px;
-    background: rgba(168, 84, 79, 0.26);
+    background: var(--accent-line);
 }
 
 /* 顶部胶带 */
@@ -736,8 +824,8 @@ h2 {
         180deg,
         transparent 0,
         transparent 33px,
-        rgba(74, 58, 51, 0.13) 33px,
-        rgba(74, 58, 51, 0.13) 34px
+        var(--ink-line) 33px,
+        var(--ink-line) 34px
     );
     padding-bottom: 6px;
 }
@@ -1053,7 +1141,7 @@ h2 {
     top: 30%;
     bottom: 0;
     z-index: 2;
-    background: linear-gradient(180deg, #fbf4ea, #f3e5d6);
+    background: var(--sheet-bg);
     border: 1px solid var(--hairline);
     box-shadow: 0 10px 26px rgba(80, 50, 35, 0.1);
 }
@@ -1064,8 +1152,8 @@ h2 {
     position: absolute;
     inset: 0;
     background-image:
-        linear-gradient(to bottom right, transparent calc(50% - 0.5px), rgba(74, 58, 51, 0.12) 50%, transparent calc(50% + 0.5px)),
-        linear-gradient(to bottom left, transparent calc(50% - 0.5px), rgba(74, 58, 51, 0.12) 50%, transparent calc(50% + 0.5px));
+        linear-gradient(to bottom right, transparent calc(50% - 0.5px), var(--ink-line) 50%, transparent calc(50% + 0.5px)),
+        linear-gradient(to bottom left, transparent calc(50% - 0.5px), var(--ink-line) 50%, transparent calc(50% + 0.5px));
     background-size: 50% 100%, 50% 100%;
     background-position: 0 0, 100% 0;
     background-repeat: no-repeat;
@@ -1081,7 +1169,7 @@ h2 {
     height: 34px;
     margin: -17px 0 0 -17px;
     border-radius: 50%;
-    background: radial-gradient(circle at 34% 30%, #bb6860, var(--accent-deep) 68%);
+    background: radial-gradient(circle at 34% 30%, var(--seal), var(--accent-deep) 68%);
     box-shadow: 0 2px 5px rgba(80, 50, 35, 0.28), inset 0 -1px 2px rgba(0, 0, 0, 0.16);
     transition: opacity 600ms ease, transform 600ms ease;
 }
@@ -1099,7 +1187,7 @@ h2 {
     top: 0;
     height: 70%;
     z-index: 3;
-    background: linear-gradient(180deg, #f7eadd, #efdccb);
+    background: var(--flap-bg);
     clip-path: polygon(0 0, 100% 0, 50% 100%);
     transform-origin: 50% 0;
     transform: rotateX(0deg);
@@ -1264,7 +1352,7 @@ body[data-step="celebration"] .celebration h2 {
     h1 { font-size: 1.35rem; }
     h2 { font-size: 1.05rem; }
     .editorial-question { font-size: 1.08rem; }
-    .note-body { font-size: 0.95rem; line-height: 32px; background-image: repeating-linear-gradient(180deg, transparent 0, transparent 31px, rgba(74, 58, 51, 0.13) 31px, rgba(74, 58, 51, 0.13) 32px); }
+    .note-body { font-size: 0.95rem; line-height: 32px; background-image: repeating-linear-gradient(180deg, transparent 0, transparent 31px, var(--ink-line) 31px, var(--ink-line) 32px); }
     .contact-cell { width: 48px; height: 48px; }
     /* 注意：这里必须重新声明 padding-top（简写会覆盖 ≤480 的 60px），
        否则照片章这种高内容会顶到音乐胶囊，进度线被压住 */

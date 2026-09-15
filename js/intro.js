@@ -11,13 +11,18 @@ const MeshGradient = MeshGradientModule && MeshGradientModule.default
   ? MeshGradientModule.default
   : MeshGradientModule;
 
-/* 主题来自 config.theme（产品化：换主题只改 JSON） */
+/* 主题来自 theme 令牌层（preset + config.theme 合并结果）。
+ * 不要再单独解析 config.theme —— 那会绕过 preset，换主题时第一屏不跟着变。 */
 const CFG = window.VALENTINE_CONFIG || {};
-const T = CFG.theme || {};
+const T = (window.LPTheme && typeof window.LPTheme.current === 'function')
+  ? window.LPTheme.current()
+  : (CFG.theme || {});
 const PALETTE = {
-  colors: (T.colors && T.colors.gradient) || T.gradient || ['#f7ece2', '#f3d5cb', '#f7ddc0', '#f2e6d9'],
+  colors: (T.mesh && T.mesh.length ? T.mesh : null)
+    || (T.colors && T.colors.gradient)
+    || ['#f7ece2', '#f3d5cb', '#f7ddc0', '#f2e6d9'],
   amp: (T.motion && T.motion.gradientAmp) || 130,
-  speed: (T.motion && T.motion.gradientSpeed) || T.motionSpeed || 700,
+  speed: (T.motion && T.motion.gradientSpeed) || 700,
   fadeMs: (T.motion && T.motion.introFadeMs) || 1500,
 };
 

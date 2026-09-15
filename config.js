@@ -185,10 +185,21 @@ const CONFIG = {
     photoNextBtn: "下一个",
     photoPrevBtn: "上一张",
 
-    // —— Experience Schema（章节结构：state.js 读取；留空 = 内置默认）——
-    // chapters: [{ step: 2, id: "quiz", label: "壹", enabled: true }, ...]
+    // —— Experience Schema（章节结构：state.js / script.js 读取；留空 = 内置默认）——
+    // 每个章节：step（对应 #questionN）、id（模块标识）、label（旅程编号）、
+    //           title（本章 kicker 章名，唯一来源）、enabled（false = 跳过此章）、progress（进度线百分比）
+    // 想让某章不出现在旅程里：enabled: false。改顺序/改名/加章节都不用碰 renderer。
     experience: {
-        chapters: []
+        chapters: [
+            { step: 1, id: "home",      label: "序", title: "",         enabled: true,  progress: 0 },
+            { step: 2, id: "quiz",      label: "壹", title: "默契",      enabled: true,  progress: 16 },
+            { step: 3, id: "meter",     label: "贰", title: "心动",      enabled: true,  progress: 32 },
+            { step: 4, id: "questions", label: "叁", title: "想问你",    enabled: true,  progress: 48 },
+            { step: 5, id: "smallthings", label: "肆", title: "小事",    enabled: true,  progress: 64 },
+            { step: 6, id: "photos",    label: "伍", title: "私人档案",  enabled: true,  progress: 80 },
+            { step: 7, id: "letters",   label: "陆", title: "来信",      enabled: true,  progress: 90 },
+            { step: 8, id: "surprise",  label: "柒", title: "惊喜",      enabled: true,  progress: 96 }
+        ]
     },
 
     // —— Content Schema：故事层 ——

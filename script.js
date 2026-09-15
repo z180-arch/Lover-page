@@ -1,6 +1,17 @@
 // Initialize configuration
 const config = window.VALENTINE_CONFIG;
 
+/* 当前生效的主题令牌（preset + config.theme 合并后的结果）。
+ * renderer 一律从这里读视觉参数，不要再各自去翻 config.theme ——
+ * 否则「主题 preset 提供的值」会被绕过，换主题时行为不一致。
+ * 定义处必须早于任何调用点（曾因缺失本函数导致初始化在第一步就中断）。 */
+function themeTokens() {
+    if (window.LPTheme && typeof window.LPTheme.current === 'function') {
+        return window.LPTheme.current();
+    }
+    return (config && config.theme) || {};
+}
+
 // Validate configuration
 function validateConfig() {
     const warnings = [];
@@ -76,11 +87,14 @@ document.title = config.pageTitle;
 window.addEventListener('DOMContentLoaded', () => {
     validateConfig();
 
-    // 第一屏开场文案（config.intro）
+    // 章节章名（config.experience.chapters[].title → kicker）
+    renderChapterKickers();
+
+    // 第一屏开场文案：theme preset 的 hero 优先，config.theme.hero 作为实例级覆盖
     const introTitle = document.getElementById('introTitle');
     const introSub = document.getElementById('introSub');
     const introEnter = document.getElementById('introEnter');
-    const hero = (config.theme && config.theme.hero) || config.intro || {};
+    const hero = (themeTokens() && themeTokens().hero) || (config.theme && config.theme.hero) || {};
     if (introTitle && hero.title) introTitle.textContent = hero.title;
     if (introSub && hero.subtitle) introSub.textContent = hero.subtitle;
     if (introEnter && hero.enterBtn) introEnter.textContent = hero.enterBtn;
@@ -151,7 +165,29 @@ window.addEventListener('DOMContentLoaded', () => {
     document.body.dataset.step = '1';
     const fill = document.getElementById('journeyFill');
     if (fill) fill.style.setProperty('--journey-progress', '0%');
+    syncDissolve(1);
 });
+
+/* 章节 kicker 章名：唯一来源是 config.experience.chapters[].title。
+ * journey 负责编号与进度，kicker 只负责章名 —— 两处不再印同一个字（v1 的视觉冗余）。
+ * 空 title（如首页）则隐藏 kicker，而不是留一条空行。 */
+function renderChapterKickers() {
+    const list = (typeof chapterList === 'function') ? chapterList() : [];
+    document.querySelectorAll('.question-section').forEach((section) => {
+        const m = /^question(\d+)$/.exec(section.id || '');
+        if (!m) return;
+        const kicker = section.querySelector('.chapter-kicker');
+        if (!kicker) return;
+        const chapter = list.find(c => String(c.step) === m[1]);
+        const title = chapter && chapter.title;
+        if (!title) {
+            kicker.setAttribute('hidden', '');
+            return;
+        }
+        kicker.removeAttribute('hidden');
+        kicker.textContent = title;
+    });
+}
 
 // ============================================================
 // 母版原有：浮动爱心和熊（完整保留）
@@ -162,7 +198,7 @@ function createFloatingElements() {
     container.innerHTML = '';
 
     // 极少量花瓣，慢速飘落；纯 CSS 形状，不用 emoji
-    const motion = (config.theme && config.theme.motion) || {};
+    const motion = themeTokens().motion || {};
     const fallRange = motion.petalFallDuration || [12, 22];
     const PETAL_COUNT = Math.round((window.innerWidth < 640 ? 0.5 : 1) * (motion.petalCount || 9));
     for (let i = 0; i < PETAL_COUNT; i++) {
@@ -191,9 +227,12 @@ const CHAPTER_CONTENT_COUNT = {
 function showNextQuestion(questionNumber) {
     let n = Number(questionNumber);
 
-    // 向前跳过所有无内容章节；全部为空时直接进入结尾（而不是停在空页）
+    // 向前跳过所有「被禁用」或「无内容」的章节；全部不可用时直接进入结尾（而不是停在空页）
     let guard = 0;
-    while (CHAPTER_CONTENT_COUNT[n] && CHAPTER_CONTENT_COUNT[n]() === 0 && guard++ < 12) {
+    while (guard++ < 12) {
+        const disabled = typeof window.chapterEnabled === 'function' && !window.chapterEnabled(n);
+        const empty = CHAPTER_CONTENT_COUNT[n] && CHAPTER_CONTENT_COUNT[n]() === 0;
+        if (!disabled && !empty) break;
         n += 1;
     }
     if (n > 8) {
@@ -807,7 +846,7 @@ function celebrate() {
 function createHeartExplosion() {
     const container = document.querySelector('.floating-elements');
     if (!container) return;
-    const burstCount = (config.theme && config.theme.motion && config.theme.motion.burstCount) || 24;
+    const burstCount = (themeTokens().motion && themeTokens().motion.burstCount) || 24;
     for (let i = 0; i < burstCount; i++) {
         const petal = document.createElement('div');
         petal.className = 'petal is-burst';
