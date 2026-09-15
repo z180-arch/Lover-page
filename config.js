@@ -183,6 +183,7 @@ const CONFIG = {
         { src: "./assets/photos/landscape-08.jpg", caption: "随便走走也挺好，只要是和你一起。" }
     ],
     photoNextBtn: "下一个",
+    photoPrevBtn: "上一张",
 
     // —— Experience Schema（章节结构：state.js 读取；留空 = 内置默认）——
     // chapters: [{ step: 2, id: "quiz", label: "壹", enabled: true }, ...]
@@ -289,5 +290,10 @@ const CONFIG = {
 };
 
 // Export for use in other scripts
+// DEFAULT_CONFIG = 本文件的内容（分享链接 diff 的基准，必须保持不被污染）
 window.DEFAULT_CONFIG = CONFIG;
-window.VALENTINE_CONFIG = { ...CONFIG };
+// VALENTINE_CONFIG = 运行时生效的配置。
+// 必须是深拷贝：浅拷贝会让 { ...CONFIG } 与 DEFAULT_CONFIG 共享所有嵌套对象，
+// 于是任何运行时改动（URL 分享配置 / 将来的编辑器）都会反过来改掉基准，
+// 使 diff 失真、分享链接带不上真正的覆盖内容。
+window.VALENTINE_CONFIG = JSON.parse(JSON.stringify(CONFIG));
