@@ -9,10 +9,20 @@
   var panelCS = panel ? getComputedStyle(panel) : null;
   var kicker = document.querySelector('#question2 .chapter-kicker');
   var journey = document.getElementById('journeyLabel');
-  var minH = Infinity, small = 0;
+  var minH = Infinity, small = 0, animating = 0, measured = 0;
+  /* 正在跑动画/过渡的元素必须跳过：入场动画里的按钮会被 transform: scale 压到
+   * 43.x px，「< 44」就成立了，于是报出假阳性（实测：同一页面 wait 2200 报 1、
+   * wait 2600 报 0）。报告里带上 animating=N，说明漏测了几个，而不是假装量过了。 */
+  var isAnimating = function (el) {
+    if (typeof el.getAnimations !== 'function') return false;
+    try { return el.getAnimations().some(function (a) { return a.playState === 'running'; }); }
+    catch (e) { return false; }
+  };
   document.querySelectorAll('button, [role="button"]').forEach(function (b) {
     var r = b.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) return;
+    if (isAnimating(b)) { animating++; return; }
+    measured++;
     if (r.height < minH) minH = r.height;
     if (r.height < 44) small++;
   });
@@ -35,7 +45,8 @@
     'kicker=' + (kicker ? kicker.textContent : 'n/a'),
     'hScroll=' + (document.documentElement.scrollWidth > window.innerWidth
       ? 'YES(' + document.documentElement.scrollWidth + '>' + window.innerWidth + ')' : 'no'),
-    'touchUnder44=' + (isFinite(minH) ? small + ' min=' + Math.round(minH) + 'px' : 'n/a'),
+    'touchUnder44=' + (isFinite(minH) ? small + ' min=' + Math.round(minH) + 'px' : 'n/a') +
+      ' measured=' + measured + ' animating=' + animating,
     'roseVisible=' + (function () {
       var el = document.querySelector('.intro-rose');
       if (!el) return 'n/a';

@@ -51,8 +51,11 @@ window.DEFAULT_CONFIG = {
     smallThings: ["一起看一次夜景", "睡前交换今天最开心的事"],
 
     photos: [
-        { src: "./assets/photos/landscape-04.jpg", caption: "以后一起去这样的湖边走走吧。" },
-        { src: "./assets/photos/landscape-07.jpg", caption: "今晚的星星，分你一半。" }
+        { src: "./assets/photos/landscape-04.jpg", width: 1000, height: 667,
+          alt: "夜色下平静的湖面", caption: "以后一起去这样的湖边走走吧。" },
+        { src: "./assets/photos/landscape-07.jpg", width: 1000, height: 562,
+          alt: "夜空与星星", caption: "今晚的星星，分你一半。",
+          focalPoint: { x: 0.5, y: 0.35 } }   // 星空图把裁切区域上移，避免切掉星星
     ],
     photoTexts: { empty: "还没有放进照片。", error: "这张照片暂时加载不出来。", videoError: "这段视频暂时加载不出来。" },
 
@@ -89,4 +92,7 @@ window.DEFAULT_CONFIG = {
     animations: { floatDuration: "15s", floatDistance: "50px", bounceSpeed: "0.5s", heartExplosionSize: 1.5 }
 };
 
-window.VALENTINE_CONFIG = { ...window.DEFAULT_CONFIG };
+// VALENTINE_CONFIG = 运行时生效配置。**必须是深拷贝**：
+// 浅拷贝会让它与 DEFAULT_CONFIG 共享嵌套对象，任何运行时改动都会反过来改掉基准，
+// 使分享链接的 diff 失真。与 config.js 保持一致。
+window.VALENTINE_CONFIG = JSON.parse(JSON.stringify(window.DEFAULT_CONFIG));

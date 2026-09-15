@@ -858,12 +858,19 @@ h2 {
 
 .photo-frame.is-clickable { cursor: zoom-in; }
 
+/* 照片/视频：宽 100% + 高度按内在比例。
+ * width/height 属性由 renderer 从 config 写入（有则写，无则省略）——
+ * 浏览器据此在**图片下载完成之前**就算出正确高度，切图时下方内容不再跳动（CLS）。
+ * 没有 width/height 的旧配置行为不变（退回按解码后的真实尺寸布局）。
+ * -photo-focus 由 focalPoint {x,y} 生成，决定 object-fit:cover 裁掉哪一部分。 */
 .photo-frame img,
 .photo-frame video {
     display: block;
     width: 100%;
+    height: auto;
     max-height: 48vh;
     object-fit: cover;
+    object-position: var(--photo-focus, 50% 50%);
 }
 
 .photo-frame.is-loading::after {

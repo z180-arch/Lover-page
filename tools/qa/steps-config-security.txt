@@ -1,0 +1,62 @@
+# 配置安全 / 照片 schema 的**真实浏览器**验证（390x844）
+#
+# 前置：python -m http.server 8899 --bind 127.0.0.1
+# 运行：node tools/qa/build-batch.js .qa-out/cfgsec.batch.json tools/qa/steps-config-security.txt
+#       agent-browser close --all && agent-browser batch < .qa-out/cfgsec.batch.json > .qa-out/cfgsec.log 2>&1
+#
+# 与 tools/qa/config-suite.js 的分工：套件是 Node 里的快速契约回归（80 断言，秒级）；
+# 本文件负责三件只有真实浏览器才能证明的事：
+#   A. 注入面 —— 恶意字符串被 esc() 当文本处理，不产生 DOM 节点、不执行脚本
+#   B. 尺寸预留 —— width/height 真的落到属性上，object-position 真的来自 focalPoint
+#   C. 诊断可见性 —— 非法配置在 console 与 LPDiagnostics 里都能看到字段路径
+
+# —— 0. 默认配置基线 ——
+open http://127.0.0.1:8899/index.html
+set viewport 390 844
+wait 2200
+!click #introEnter
+wait 2500
+@probe
+!eval LPDiagnostics.line()
+!eval window.__lpErrors.join(" ;; ") || "no-errors"
+
+# —— A. 注入面：photos[].date 里塞 <img src=x onerror=...> ——
+open http://127.0.0.1:8899/index.html?conf=eyJwaG90b3MiOlt7InNyYyI6Ii4vYXNzZXRzL3Bob3Rvcy9sYW5kc2NhcGUtMDEuanBnIiwiZGF0ZSI6IlwiPjxpbWcgc3JjPXggb25lcnJvcj13aW5kb3cuX19wd25lZD0xPiIsInBsYWNlIjoiUFdOLVRFU1QifV19
+wait 2200
+!click #introEnter
+wait 2500
+!eval window.appState.setState({currentStep:6}); "ok"
+wait 1500
+!eval JSON.stringify({step:document.body.dataset.step,pwned:(window.__pwned===undefined?"undefined(安全)":String(window.__pwned)),injectedImg:document.querySelectorAll("#photoStage img[src=\"x\"]").length,plateText:(document.querySelector(".photo-plate")||{textContent:""}).textContent.slice(0,50),frameText:(document.querySelector(".photo-frame")||{textContent:""}).textContent.slice(0,50)})
+!eval window.__lpErrors.join(" ;; ") || "no-errors"
+screenshot
+
+# —— B. 尺寸预留 + focalPoint + alt ——
+open http://127.0.0.1:8899/index.html?conf=eyJwaG90b3MiOlt7InNyYyI6Ii4vYXNzZXRzL3Bob3Rvcy9sYW5kc2NhcGUtMDEuanBnIiwid2lkdGgiOjEwMDAsImhlaWdodCI6NjY1LCJhbHQiOiLmtYvor5XnlKjlm74iLCJjYXB0aW9uIjoi5bC65a%2B46aKE55WZ5rWL6K%2BVIiwiZm9jYWxQb2ludCI6eyJ4IjowLjIsInkiOjAuOH19XX0%3D
+wait 2200
+!click #introEnter
+wait 2500
+!eval window.appState.setState({currentStep:6}); "ok"
+wait 1500
+!eval (function(){var img=document.querySelector("#photoStage img");if(!img)return "no-img";var cs=getComputedStyle(img);return JSON.stringify({attrW:img.getAttribute("width"),attrH:img.getAttribute("height"),naturalW:img.naturalWidth,naturalH:img.naturalHeight,cssAspectRatio:cs.aspectRatio,objectPosition:cs.objectPosition,objectFit:cs.objectFit,alt:img.getAttribute("alt"),loading:img.getAttribute("loading"),decoding:img.getAttribute("decoding"),frameH:Math.round(img.getBoundingClientRect().height),caption:(document.getElementById("photoCaption")||{}).textContent})})()
+!eval window.__lpErrors.join(" ;; ") || "no-errors"
+screenshot
+
+# —— C. 非法配置：必须回退默认 + 留下可读诊断 ——
+open http://127.0.0.1:8899/index.html?conf=eyJ0aGVtZSI6eyJ1bmtub3duRmllbGQiOiJ4eHgifSwicGVyc29uIjp7Im5pY2tuYW1lIjoxMjM0NSwiZXZpbCI6IngifSwicXVpeiI6eyJhbnN3ZXIiOiJ0d28ifX0%3D
+wait 2200
+!eval JSON.stringify({warnings:LPDiagnostics.list("config").map(function(w){return w.path+" ["+w.code+"]";}),count:LPDiagnostics.count("config")})
+!eval JSON.stringify({nickname:VALENTINE_CONFIG.person.nickname,nicknameType:typeof VALENTINE_CONFIG.person.nickname,themeUnknown:String(VALENTINE_CONFIG.theme.unknownField),personEvil:String(VALENTINE_CONFIG.person.evil),quizAnswer:VALENTINE_CONFIG.quiz.answer,homeTitle:VALENTINE_CONFIG.home.title,configSource:window.__configSource})
+!eval window.__lpErrors.join(" ;; ") || "no-errors"
+@theme
+
+# —— D. 旧格式照片（只有 src+caption）必须照旧可用 ——
+open http://127.0.0.1:8899/index.html?conf=eyJwaG90b3MiOlt7InNyYyI6Ii4vYXNzZXRzL3Bob3Rvcy9sYW5kc2NhcGUtMDIuanBnIiwiY2FwdGlvbiI6IuaXp%2BagvOW8j%2BWPquacieS4pOS4quWtl%2BautSJ9XX0%3D
+wait 2200
+!click #introEnter
+wait 2500
+!eval window.appState.setState({currentStep:6}); "ok"
+wait 1500
+!eval JSON.stringify({step:document.body.dataset.step,pwned:(window.__pwned===undefined?"undefined(安全)":String(window.__pwned)),injectedImg:document.querySelectorAll("#photoStage img[src=\"x\"]").length,plateText:(document.querySelector(".photo-plate")||{textContent:""}).textContent.slice(0,50),frameText:(document.querySelector(".photo-frame")||{textContent:""}).textContent.slice(0,50)})
+!eval JSON.stringify({warnings:LPDiagnostics.count("config"),imgSrc:(document.querySelector("#photoStage img")||{}).getAttribute("src"),caption:(document.getElementById("photoCaption")||{}).textContent,attrW:(document.querySelector("#photoStage img")||{}).getAttribute("width")})
+!eval window.__lpErrors.join(" ;; ") || "no-errors"

@@ -46,7 +46,11 @@ window.DEFAULT_CONFIG = {
     smallThings: ["一起散步十分钟", "交换一首最近循环的歌"],
 
     photos: [
-        { src: "./assets/photos/landscape-01.jpg", caption: "看到好看的天，第一反应是想发给你。" }
+        // 最小写法仍然可用：只有 src + caption 时渲染结果与从前一致（不产生任何警告）。
+        // 但**强烈建议**补 width/height —— 否则图片下载完成前容器高度未知，切图会顶动下方内容。
+        // 不知道尺寸就跑：node tools/media/image-dims.js assets/photos/*.jpg
+        { src: "./assets/photos/landscape-01.jpg", width: 1000, height: 665,
+          alt: "傍晚天空下的开阔风景", caption: "看到好看的天，第一反应是想发给你。" }
     ],
     photoTexts: { empty: "还没有放进照片。", error: "这张照片暂时加载不出来。", videoError: "这段视频暂时加载不出来。" },
 
@@ -72,4 +76,5 @@ window.DEFAULT_CONFIG = {
     animations: { floatDuration: "15s", floatDistance: "50px", bounceSpeed: "0.5s", heartExplosionSize: 1.5 }
 };
 
-window.VALENTINE_CONFIG = { ...window.DEFAULT_CONFIG };
+// 深拷贝，理由同 example-romantic.js（浅拷贝会让运行时改动污染 DEFAULT_CONFIG 基准）
+window.VALENTINE_CONFIG = JSON.parse(JSON.stringify(window.DEFAULT_CONFIG));

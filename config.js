@@ -171,16 +171,33 @@ const CONFIG = {
 
     // —— 风景照片（免费可商用 Unsplash 素材，已下载到本地 ./assets/photos/）——
     // 想换成自己的图，把文件放进 assets/photos 并改这里的 src / caption 即可。
-    // 可选字段：date / place（美术馆展签用，不填则不显示该栏）
+    //
+    // 字段说明（完整契约见 docs/architecture/CONFIG_CONTRACT.md）：
+    //   src         必填。图片或视频路径（.mp4/.webm/.mov/.ogg/.m4v 结尾按视频渲染）
+    //   width       图片原始像素宽。**强烈建议填** —— 有它浏览器才能在图片下载完之前
+    //   height      就预留正确高度，否则每次切图都会把下方内容顶一下（CLS 布局偏移）。
+    //               不知道尺寸？跑 node tools/media/image-dims.js assets/photos/*.jpg
+    //   caption     图注（展签下方那段话）
+    //   alt         无障碍替代文本。留空则退化为通用描述；信息性图片建议填。
+    //   date/place  美术馆展签的「日期 · 地点」，留空则整栏不显示
+    //   focalPoint  构图焦点（0~1 归一化）。竖图或主体偏一侧时用它决定裁切保留哪里，
+    //               默认 0.5/0.5 即居中，与旧行为一致
+    //   thumb       缩略图路径（可选，不填则索引条用原图）
+    //
+    // 兼容：只有 { src, caption } 的旧写法完全可用，渲染结果与从前一致。
+    //
+    // 为什么每张都显式写 focalPoint：schema 的形状**就是**默认值的形状
+    // （校验层拿 DEFAULT_CONFIG 当基准递归比对）。这里省略某个字段，用户就再也
+    // 无法在分享链接里覆盖它 —— 所以「可选字段」也必须在默认值里声明。
     photos: [
-        { src: "./assets/photos/landscape-01.jpg", caption: "看到好看的天，第一反应是想发给你。" },
-        { src: "./assets/photos/landscape-02.jpg", caption: "想和你一起去很高很高的地方看看。" },
-        { src: "./assets/photos/landscape-03.jpg", caption: "雾蒙蒙的树林，很安静，像和你待着的时候。" },
-        { src: "./assets/photos/landscape-04.jpg", caption: "以后一起去这样的湖边走走吧。" },
-        { src: "./assets/photos/landscape-05.jpg", caption: "花开的时候，觉得世界都软了一点。" },
-        { src: "./assets/photos/landscape-06.jpg", caption: "风很舒服的日子，会想起你。" },
-        { src: "./assets/photos/landscape-07.jpg", caption: "今晚的星星，分你一半。" },
-        { src: "./assets/photos/landscape-08.jpg", caption: "随便走走也挺好，只要是和你一起。" }
+        { src: "./assets/photos/landscape-01.jpg", width: 1000, height: 665, alt: "傍晚天空下的开阔风景", caption: "看到好看的天，第一反应是想发给你。", focalPoint: { x: 0.5, y: 0.5 } },
+        { src: "./assets/photos/landscape-02.jpg", width: 1000, height: 667, alt: "高处俯瞰的远景", caption: "想和你一起去很高很高的地方看看。", focalPoint: { x: 0.5, y: 0.5 } },
+        { src: "./assets/photos/landscape-03.jpg", width: 1000, height: 596, alt: "雾中的树林", caption: "雾蒙蒙的树林，很安静，像和你待着的时候。", focalPoint: { x: 0.5, y: 0.5 } },
+        { src: "./assets/photos/landscape-04.jpg", width: 1000, height: 667, alt: "平静的湖边风景", caption: "以后一起去这样的湖边走走吧。", focalPoint: { x: 0.5, y: 0.5 } },
+        { src: "./assets/photos/landscape-05.jpg", width: 1000, height: 667, alt: "盛开的花", caption: "花开的时候，觉得世界都软了一点。", focalPoint: { x: 0.5, y: 0.5 } },
+        { src: "./assets/photos/landscape-06.jpg", width: 1000, height: 667, alt: "有风的户外风景", caption: "风很舒服的日子，会想起你。", focalPoint: { x: 0.5, y: 0.5 } },
+        { src: "./assets/photos/landscape-07.jpg", width: 1000, height: 562, alt: "夜空与星星", caption: "今晚的星星，分你一半。", focalPoint: { x: 0.5, y: 0.5 } },
+        { src: "./assets/photos/landscape-08.jpg", width: 1000, height: 667, alt: "随意散步时看到的景色", caption: "随便走走也挺好，只要是和你一起。", focalPoint: { x: 0.5, y: 0.5 } }
     ],
     photoNextBtn: "下一个",
     photoPrevBtn: "上一张",

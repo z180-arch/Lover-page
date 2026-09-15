@@ -49,22 +49,23 @@ function validateConfig() {
     }
 }
 
-/* 把用户内容安全放进 innerHTML：配置里出现 < & 等字符时不破坏版式（§31 错误态） */
-function esc(s) {
-    return String(s == null ? '' : s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-/* 文案池守卫：过滤空串，池为空时返回空数组（由章节跳过规则处理，绝不渲染 "undefined"） */
-function textPool(list) {
-    return Array.isArray(list)
-        ? list.filter(v => typeof v === 'string' && v.trim() !== '')
-        : [];
-}
+/* ============================================================
+ * 兼容层（对应 AGENTS.md 的「Legacy API → Compatibility Layer → New Module」）
+ *
+ * script.js 是个 1000 行的编排文件，正在按「有独立职责 + 有独立测试价值」
+ * 的标准渐进拆分。已抽出的模块通过同名薄封装接回来，所以：
+ *   - index.html 里 15 处内联 onclick（showNextQuestion / finishMeter / celebrate…）
+ *     一行都不用改；
+ *   - 本文件内部上百个调用点也不用改；
+ *   - 但实现已经搬到能单独测试的地方去了。
+ *
+ * 已抽出：
+ *   js/core/text.js      esc / textPool / pickRandom —— esc 是全站唯一的安全边界
+ *   js/chapters/gauge.js 仪表几何与绘制 —— 纯计算，可无浏览器单测
+ * ============================================================ */
+const esc = window.LPText.esc;
+const textPool = window.LPText.textPool;
+const pickRandom = window.LPText.pickRandom;
 
 // Default color values
 function getDefaultColor(key) {
@@ -301,92 +302,12 @@ const loveMeter = document.getElementById('loveMeter');
 const loveValue = document.getElementById('loveValue');
 const extraLove = document.getElementById('extraLove');
 
-/* 仪表几何：与 HTML 里的 viewBox 0 0 240 138 对应（半圆 180°） */
-const GAUGE_CX = 120;
-const GAUGE_CY = 120;
-const GAUGE_R = 92;
-const GAUGE_ANGLE_MIN = -90;   // 9 点钟方向
-const GAUGE_ANGLE_MAX = 90;    // 3 点钟方向
-const GAUGE_OVER_SWING = 13;   // 超出量程后指针继续前压的最大角度（限位手感）
-const GAUGE_OVER_CAP = 100;    // 量程上限（>100 即“爆表”区）
-
-/** 数值 → 指针角度（度）。0–100 均匀铺满左半到右半；>100 顶到限位后缓慢前压并趋于饱和。 */
-function gaugeAngleFor(value) {
-    const v = Math.max(0, Number(value) || 0);
-    if (v <= GAUGE_OVER_CAP) {
-        return GAUGE_ANGLE_MIN + (v / GAUGE_OVER_CAP) * (GAUGE_ANGLE_MAX - GAUGE_ANGLE_MIN);
-    }
-    return GAUGE_ANGLE_MAX + GAUGE_OVER_SWING * (1 - GAUGE_OVER_CAP / v);
-}
-
-/** 极坐标 → SVG 用户坐标。0° 指向正上方，顺时针为正。 */
-function gaugePolar(deg, radius) {
-    const rad = (deg * Math.PI) / 180;
-    return { x: GAUGE_CX + radius * Math.sin(rad), y: GAUGE_CY - radius * Math.cos(rad) };
-}
-
-const gaugeFmt = (n) => Number(n).toFixed(2);
-
-/* 刻度：0–100 每 5 一格，每 25 一主刻度带数字；末端一条限位挡针 */
-function buildGaugeTicks() {
-    const g = document.getElementById('gaugeTicks');
-    if (!g) return;
-    let html = '';
-    for (let v = 0; v <= GAUGE_OVER_CAP; v += 5) {
-        const major = v % 25 === 0;
-        const deg = gaugeAngleFor(v);
-        const outer = gaugePolar(deg, GAUGE_R - 6);
-        const inner = gaugePolar(deg, GAUGE_R - (major ? 20 : 13));
-        html += `<line class="gauge-tick${major ? ' is-major' : ''}" x1="${gaugeFmt(inner.x)}" y1="${gaugeFmt(inner.y)}" x2="${gaugeFmt(outer.x)}" y2="${gaugeFmt(outer.y)}" />`;
-        if (major) {
-            const lp = gaugePolar(deg, GAUGE_R - 31);
-            html += `<text class="gauge-tick-label" x="${gaugeFmt(lp.x)}" y="${gaugeFmt(lp.y)}" text-anchor="middle" dominant-baseline="central">${v}</text>`;
-        }
-    }
-    const stopOuter = gaugePolar(GAUGE_ANGLE_MAX + 2.2, GAUGE_R - 6);
-    const stopInner = gaugePolar(GAUGE_ANGLE_MAX + 2.2, GAUGE_R - 22);
-    html += `<line class="gauge-endstop" x1="${gaugeFmt(stopInner.x)}" y1="${gaugeFmt(stopInner.y)}" x2="${gaugeFmt(stopOuter.x)}" y2="${gaugeFmt(stopOuter.y)}" />`;
-    g.innerHTML = html;
-}
-
-/* 峰值标记：只记录超过 100 之后的最高点（真仪表的 drag pointer） */
-let gaugePeakAngle = null;
-
-function updateGauge(value) {
-    const v = Math.max(0, Number(value) || 0);
-    const angle = gaugeAngleFor(v);
-    const needle = document.getElementById('gaugeNeedle');
-    const fill = document.getElementById('gaugeFill');
-    const gauge = document.querySelector('.gauge');
-
-    if (needle) needle.style.transform = `rotate(${gaugeFmt(angle)}deg)`;
-    if (fill) {
-        // pathLength=100，所以 dasharray 直接用「百分比 100」的数值字符串（跨浏览器最稳）
-        const pct = Math.max(0, Math.min(100, ((angle - GAUGE_ANGLE_MIN) / 180) * 100));
-        fill.style.strokeDasharray = `${gaugeFmt(pct)} 100`;
-    }
-    if (gauge) gauge.classList.toggle('is-over', v > GAUGE_OVER_CAP);
-
-    const peak = document.getElementById('gaugePeak');
-    if (peak) {
-        if (v > GAUGE_OVER_CAP) {
-            if (gaugePeakAngle === null || angle > gaugePeakAngle) gaugePeakAngle = angle;
-            peak.style.transform = `rotate(${gaugeFmt(gaugePeakAngle)}deg)`;
-            peak.removeAttribute('hidden');
-        } else {
-            peak.setAttribute('hidden', '');
-        }
-    }
-}
-
-function resetGaugePeak() {
-    gaugePeakAngle = null;
-    const peak = document.getElementById('gaugePeak');
-    if (peak) {
-        peak.setAttribute('hidden', '');
-        peak.style.transform = '';
-    }
-}
+/* 仪表几何与绘制已抽到 js/chapters/gauge.js。这里保留同名薄封装，
+ * 让散落在本文件里的调用点与 DOMContentLoaded 初始化不用改。 */
+const gaugeAngleFor = (v) => window.LPGauge.angleFor(v);
+const buildGaugeTicks = () => window.LPGauge.buildTicks();
+const updateGauge = (v) => window.LPGauge.update(v);
+const resetGaugePeak = () => window.LPGauge.resetPeak();
 
 function setInitialPosition() {
     loveMeter.value = 100;
@@ -443,13 +364,7 @@ function finishMeter() {
 // 小游戏 3：随机问题
 // ============================================================
 let lastQuestionIdx = -1;
-function pickRandom(arr, lastIdx) {
-    if (!arr || !arr.length) return -1;
-    if (arr.length === 1) return 0;
-    let i;
-    do { i = Math.floor(Math.random() * arr.length); } while (i === lastIdx);
-    return i;
-}
+/* pickRandom 已抽到 js/core/text.js（纯函数，可单测），顶部有薄封装 */
 function replaySwapAnimation(el) {
     if (!el) return;
     el.classList.remove('is-swapping');
@@ -511,24 +426,64 @@ function imageIndexAmongPhotos(idx) {
     return n;
 }
 
+/* focalPoint {x,y}（0~1 归一化）→ CSS object-position。
+ * 越界值夹到 [0,100]，非法值返回空串（等价于默认居中）。 */
+function photoFocus(p) {
+    const f = p && p.focalPoint;
+    if (!f || typeof f !== 'object') return '';
+    const x = Number(f.x), y = Number(f.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return '';
+    const cl = (v) => Math.min(100, Math.max(0, v * 100)).toFixed(1);
+    return cl(x) + '% ' + cl(y) + '%';
+}
+
+/* 照片/视频标签。三条硬规则：
+ *   1. 所有 config 值必须 esc() —— 这个函数曾经是唯一漏掉转义的渲染点，
+ *      而照片配置可以经 ?conf= 从 URL 进入，等于一个注入面。
+ *   2. width/height 原样交给浏览器 → 图片下载完成前就预留正确高度（防 CLS）。
+ *      没有这两个字段时保持旧行为（不写属性，不强制比例）。
+ *   3. focalPoint → object-position，决定裁切保留哪一部分。 */
+function photoMediaHtml(p, isVideo) {
+    const w = Number(p.width), h = Number(p.height);
+    const hasDims = Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0;
+    const dims = hasDims ? ` width="${w}" height="${h}"` : '';
+
+    if (isVideo) {
+        return `<video src="${esc(p.src)}" controls playsinline loop muted${dims}></video>`;
+    }
+    const focus = photoFocus(p);
+    const src = p.thumb || p.src;
+    /* alt 优先取显式的 alt；退化到 title；再退化到通用描述 */
+    const alt = (p.alt != null && String(p.alt) !== '')
+        ? p.alt
+        : (p.title || '回忆');
+    return `<img src="${esc(src)}" alt="${esc(alt)}"${dims}`
+        + (focus ? ` style="--photo-focus:${focus}"` : '')
+        + ` loading="lazy" decoding="async" />`;
+}
+
 function renderPhoto() {
     const stage = document.getElementById('photoStage');
     const caption = document.getElementById('photoCaption');
     const list = config.photos || [];
+    const texts = config.photoTexts || {};
     if (!list.length) {
-        stage.innerHTML = '<div class="photo-frame"><div class="photo-error">' + (config.photoTexts && config.photoTexts.empty || '还没有放进照片。') + '</div></div>';
+        stage.innerHTML = '<div class="photo-frame"><div class="photo-error">'
+            + esc(texts.empty || '还没有放进照片。') + '</div></div>';
         caption.textContent = '';
         return;
     }
     const p = list[photoIndex];
     const isVideo = /\.(mp4|webm|mov|ogg|m4v)(\?|$)/i.test(p.src || '');
     const plate = [p.date, p.place || p.location].filter(Boolean).join(' · ');
+    const seq = photoIndex + 1 + ' / ' + list.length;
     const plateHtml = plate
-        ? `<div class="photo-plate"><span>${plate}</span><span class="plate-seq">${photoIndex + 1} / ${list.length}</span></div>`
-        : `<div class="photo-plate"><span class="plate-seq">${photoIndex + 1} / ${list.length}</span></div>`;
+        ? `<div class="photo-plate"><span>${esc(plate)}</span><span class="plate-seq">${esc(seq)}</span></div>`
+        : `<div class="photo-plate"><span class="plate-seq">${esc(seq)}</span></div>`;
+    // html-safe: photoMediaHtml() 与 plateHtml 内部全部走 esc()，这里只选择分支
     stage.innerHTML = isVideo
-        ? `<div class="photo-frame is-loading"><video src="${p.src}" controls playsinline loop muted></video>${plateHtml}</div>`
-        : `<div class="photo-frame is-loading is-revealing"><img src="${p.thumb || p.src}" alt="${p.title || '回忆'}" loading="lazy" />${plateHtml}</div>`;
+        ? `<div class="photo-frame is-loading">${photoMediaHtml(p, true)}${plateHtml}</div>`
+        : `<div class="photo-frame is-loading is-revealing">${photoMediaHtml(p, false)}${plateHtml}</div>`;
     caption.textContent = p.description || p.caption || '';
 
     const frame = stage.querySelector('.photo-frame');
@@ -544,7 +499,8 @@ function renderPhoto() {
         img.addEventListener('load', () => frame.classList.remove('is-loading'));
         img.addEventListener('error', () => {
             frame.classList.remove('is-loading');
-            frame.innerHTML = '<div class="photo-error">' + (config.photoTexts && config.photoTexts.error || '这张照片暂时加载不出来。') + '</div>';
+            frame.innerHTML = '<div class="photo-error">'
+                + esc(texts.error || '这张照片暂时加载不出来。') + '</div>';
         });
         if (photoLightbox) {
             frame.classList.add('is-clickable');
@@ -572,7 +528,8 @@ function renderPhoto() {
         video.addEventListener('loadeddata', () => frame.classList.remove('is-loading'));
         video.addEventListener('error', () => {
             frame.classList.remove('is-loading');
-            frame.innerHTML = '<div class="photo-error">' + (config.photoTexts && config.photoTexts.videoError || '这段视频暂时加载不出来。') + '</div>';
+            frame.innerHTML = '<div class="photo-error">'
+                + esc(texts.videoError || '这段视频暂时加载不出来。') + '</div>';
         });
         const pp = video.play();
         if (pp && pp.catch) pp.catch(() => {});
