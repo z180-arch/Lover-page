@@ -28,6 +28,8 @@
 - [x] **照片尺寸预留**：`photos[].width/height/alt/focalPoint` 落地，修掉 `renderPhoto()` 的注入面
 - [x] **`script.js` 拆分第一层**：`js/core/text.js` + `js/chapters/gauge.js`，薄封装保持 `window.*` 不变
 - [x] **性能基线实测**：`docs/qa/PERFORMANCE_BASELINE.md`（320 / 390 / 桌面，LCP/CLS/TTFB/FCP + 资源体积）
+- [x] **性能优化第一刀（假设 1）**：相邻照片预取加可见性守卫 → 首屏 transfer **−32.63%**（729.71 → 491.61 KiB），请求数 24→22；并修掉预取 URL 与渲染层不一致
+- [x] **开场页对比度盲区**：新增 `tools/qa/steps-contrast-intro.txt`，三主题实测 PASS（最低 4.69:1）
 - [x] **章节叙事骨架分析**：`docs/design/COMPOSITION_SYSTEM.md`（6 种构图，逐章比对，揪出「默契章无专属物类」）
 
 ### 下一步（按价值排序）
@@ -38,10 +40,19 @@
    注意子集文件仍需本地构建步骤 → 需要一个「离线预处理」的小脚本，而不是引入构建系统。
    3 套主题已就位，字体是**唯一**还没被主题层接管的大块 —— 主题切换目前换了字阶/字重/字距，但没换字面。
 
-2. **按基线做性能优化（先有数字再动手）**
+2. **按基线做性能优化（先有数字再动手）** — 假设 1 已落地，剩 2 / 3
    `docs/qa/PERFORMANCE_BASELINE.md` 已给出真实 LCP / CLS / 首屏字节数。优化动作必须**逐条对应基线里的数字**，
    并复跑同一份测量方式验证收益 —— 不要凭直觉加懒加载或预加载。
-   已知最值得先看的两处：首屏 hero webp 的体积占比、以及 `assets/audio/bgm.mp3` 是否阻塞关键路径。
+   - [x] **假设 1：相邻照片预取的可见性守卫** → 首屏 transfer 729.71 → **491.61 KiB（−32.63%）**，请求数 24→22。
+     注意基线最初给的处方（给 `<img>` 加 `loading="lazy"`）**是错的**，按它做测不出效果 ——
+     根因是 `new Image()` 预取不受该属性约束。教训已写进 `MEDIA_SCHEMA_RESEARCH.md`。
+   - [ ] **假设 2（现在收益最高）：优化 LCP 主图** `redoute-gallica-bloom.webp`，198.60 KiB 不分视口下发，
+     优化后已占首屏 transfer 的 **40.4%**。按视口重编码（小屏可至 ~30–60 KiB）+ `fetchpriority="high"`。
+   - [ ] **假设 3：延迟非首屏 JS/CSS**（glightbox 55.27 + mesh-gradient 26.71 + glightbox.css 13.72 = 95.70 KiB）。
+     先确认 `mesh-gradient` 是 canvas 底衬依赖、延迟后不影响首屏观感。
+   - ⚠️ **先解决「LCP 测不准」再谈假设 2 的收益验证**：注入式 `PerformanceObserver` 在冷启动首跳捕获率低
+     （390 仅 1/5），且开场缩放动画本身让 LCP 在 644–3364ms 抖动。**修测量方法优先于改图**，
+     否则改完也说不出是好了还是没好（见 CURRENT_STATE §6 第 13 项）。
 
 3. **照片全息卡片 `photos[].style = "holo"`（V1 遗留）**
    调研结论：

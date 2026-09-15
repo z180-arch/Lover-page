@@ -50,6 +50,7 @@ tools/qa/             真实浏览器 QA + Node 回归：
                         module-suite.js        ★ 63 断言：LPText / LPGauge 纯函数
                         steps-mobile-320 / steps-mobile-390 / steps-regression
                         steps-theme-check（三主题确定性巡章）/ steps-contrast（像素回读）
+                        steps-contrast-intro（开场页像素回读）/ steps-regression（320 真实点击）
                         steps-config-security（注入面 / 尺寸预留 / 非法配置诊断）
 docs/research/        调研记忆（避免重复调研）
 docs/architecture/    架构 · ADR · ★ CONFIG_CONTRACT.md（配置的唯一权威契约）
@@ -91,9 +92,11 @@ docs/product/         功能注册表
 | 运行时 JS 错误 | **0** | `window.__lpErrors`（`tools/qa/probe.js`）；7 次采样全为 `no-errors` |
 | 横向溢出 | **无**（320 / 390，三主题） | `@diag` 的 `horizontalOverflow: false` |
 | 触摸目标 <44px | **0 个** | `@diag` 的 `underSizedTargets: []` |
-| axe-core violations | **0**（`passes: 16`） | `agent-browser a11y --tags wcag2a,wcag2aa,wcag21a,wcag21aa` |
+| axe-core violations | **0**（`passes: 16`，需先关开场页；未关时 `passes: 15`，见下注） | `agent-browser a11y --tags wcag2a,wcag2aa,wcag21a,wcag21aa` |
 | axe `incomplete: color-contrast` | 2 节点（`#musicToggle` / `#smallThingText`）→ **已用像素回读手工判定通过** | `@contrast` |
 | 对比度（canvas 像素回读） | 最低 **4.69:1**（warm-paper `.share-btn`） | `tools/qa/steps-contrast.txt` |
+| **开场页**对比度（三主题） | **PASS**：warm-paper `4.69:1` / night-archive `7.54:1` / modern-paper `5.59:1`，最差节点均为 `#introSub` | `tools/qa/steps-contrast-intro.txt` |
+| 首屏总 transfer（修复后） | **491.61 KiB**（修复前 729.71 KiB，−32.63%）；请求数 24→22 | `docs/qa/PERFORMANCE_BASELINE.md` §3.5 |
 | 音乐胶囊 × 章节进度线重叠 | 无 | `@check` |
 | 信封几何（闭合态信纸不露边） | 通过 | `@env` |
 | 三主题令牌区分度 | 两两不同（10 项指标） | `steps-theme-check.txt` |
@@ -110,6 +113,17 @@ docs/product/         功能注册表
 **性能数值**：LCP / CLS / TTFB / FCP 已用 `agent-browser vitals` 在 320×568 / 390×844 / 1440×900
 真实测得（本地 http、无 gzip，**不代表线上数字**），见 `docs/qa/PERFORMANCE_BASELINE.md`。
 INP 在纯加载场景下测不到（无交互输入），文档里如实标注为未测得 —— 不要从别处借一个数字来填。
+
+> **一屏盲区（2026-09-15 发现，已补）**：`steps-contrast.txt` 每段都是
+> `wait → !click #introEnter → @contrast`，即**先关开场页再测**。于是开场页的
+> `#introTitle` / `#introSub` / `#introEnter` 永远 `display:none`，axe 跳过、
+> `@contrast` 也跳过 —— 每个访客看到的第一屏，反而成了唯一没有对比度证据的一屏。
+> 已新增 `tools/qa/steps-contrast-intro.txt` 补上（在点掉之前测）。
+> **教训：只要测试脚本开头有一步「关掉某个覆盖层」，那个覆盖层自身就必然成为盲区。**
+>
+> **axe 的 `passes` 数与页面状态相关**：开场页未关时 15（3 个开场页节点落入
+> `incomplete`），关掉后 16。两次 `violations` 都是 0。**报数时必须写清是什么状态**，
+> 否则会被误读成「无障碍退步了」。
 
 ### QA 工具链的两个坑（踩过，别重踩）
 
@@ -130,6 +144,10 @@ INP 在纯加载场景下测不到（无交互输入），文档里如实标注�
 `renderPhoto()` 的注入面、`fillPercent(NaN)` 静默画不出弧线、`touchUnder44` 假失败、
 `esc()` 覆盖面无机制保障（新增 `tools/qa/innerhtml-guard.js`）。
 
+**1.5.0 已解决、从下表移除**：两张相册图在首屏被无条件预取（占首屏 transfer 32.8%）——
+已加可见性守卫，首屏 729.71 → 491.61 KiB；预取 URL 与渲染层不一致（`p.src` vs
+`p.thumb || p.src`）；开场页对比度盲区（新增 `steps-contrast-intro.txt`）。
+
 | # | 问题 | 影响 | 位置 |
 |---|---|---|---|
 | 1 | **字符串字段没有协议白名单** | `photos[0].src` 可以是 `javascript:` / `data:text/html,…`。转义（`esc()`）挡住了标签注入，但**不挡协议**。当前威胁模型是「自己改自己的 config」，所以可接受 —— 但做在线编辑器之前必须补 | `config-system.js` §13 |
@@ -142,6 +160,9 @@ INP 在纯加载场景下测不到（无交互输入），文档里如实标注�
 | 9 | 契约里的「保留区」字段没有读取方 | `metadata.author/created/version`、整个 `media.*`、`experience.chapters[].id`、`person.avatar/birthday/relationship`、`floatingEmojis.*` 能通过校验但没有渲染层读它们。**不要在这个基础上写新代码** | CONFIG_CONTRACT §7 |
 | 10 | 数字字段无区间校验 | `theme.motion.petalCount: 99999`、`sound.volume: 900` 都会被接受；夹取在渲染层。契约层只保证类型与安全 | CONFIG_CONTRACT §13 |
 | 11 | 无 CSP | 静态站可加 `Content-Security-Policy` meta，但当前内联脚本较多，加了会破。需要先分离内联脚本 | index.html |
+| 12 | **LCP 主图 `redoute-gallica-bloom.webp` 未优化** | 198.60 KiB 单文件不分视口下发，占首屏 transfer **40.4%**（优化后占比反而升高）。320/390 小屏严重过剩，是当前 LCP 的主要成本。**基线 §5 假设 2** | `assets/art/` |
+| 13 | **LCP 测不准** | 注入式 `PerformanceObserver` 在浏览器上下文冷启动首跳有注册竞态，捕获率低（本轮 390 仅 1/5）；且首页开场缩放动画本身导致 LCP 在 644–3364ms 间抖动。**结论：本项目的 LCP 在自动化冷启动下无法稳定定量**，改善需先在动画结束后读 `buffered` 条目重做测量方法 | PERFORMANCE_BASELINE §2.6 |
+| 14 | 首屏 JS 仍有 95.70 KiB 与首屏无关 | `vendor/glightbox.min.js`（55.27）+ `mesh-gradient.esm.js`（26.71）+ `glightbox.min.css`（13.72），仅第 6 步/装饰用，却同步阻塞首屏。**基线 §5 假设 3**。注意 `mesh-gradient` 是 canvas 底衬依赖，延迟它要先确认不影响首屏观感 | PERFORMANCE_BASELINE §5 |
 
 ## 7. 明确不做（不要再"顺手加上"）
 

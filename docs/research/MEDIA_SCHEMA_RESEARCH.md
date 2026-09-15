@@ -84,6 +84,16 @@ img { height: auto; max-width: 100%; }
 
 > 对本项目的含义：画廊图统一 `loading="lazy" decoding="async"`；`theme.hero.rose` 与画廊首图（若首屏可见）用 `loading="eager" decoding="async" fetchpriority="high"`。注意全页只放一个 `fetchpriority="high"`。
 
+> **实测补记（2026-09-15，性能基线轮）—— `loading="lazy"` 有一个它管不到的地方**：
+> 本站曾出现「两张只属于第 6 步相册的图在首屏被完整下载、占首屏 transfer 33.5%」的问题。
+> 直觉答案「给它们加 `loading="lazy"` 就好了」是**错的**，加完测出来零效果。真实根因是
+> `script.js` 的相邻照片预取用了 **`new Image()` 手动预取**（`script.js:518-541`）——
+> 该属性只作用于**解析出的 `<img>` 元素**，对 JS 手动创建的 `Image` 对象**完全无效**。
+> 修复方式不是加属性，而是在预取前加**可见性守卫**（`if (!section.classList.contains('hidden'))`）。
+> 教训：`loading="lazy"` 的正确性只覆盖「HTML 里的图片」；只要代码里存在 `new Image()` /
+> `fetch()` / `IntersectionObserver` 之外的任何主动预取路径，懒加载策略就必须逐条重新审计，
+> 不能靠属性推断。详见 `docs/qa/PERFORMANCE_BASELINE.md` 的修复前后对照。
+
 ---
 
 ## 4. `object-position` 配合 focalPoint 的标准做法

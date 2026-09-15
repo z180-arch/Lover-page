@@ -83,6 +83,16 @@ index.html
     `script.js` 里是薄封装）。它是本项目的**唯一**安全边界。
     新增一处 `innerHTML` 拼接后跑 `node tools/qa/innerhtml-guard.js` ——
     守卫要求要么用 `esc()`，要么写 `// html-safe: <理由>`，不允许沉默通过。
+15. **axe 的 `incomplete: color-contrast` 必须逐条手工判定，不能当通过。**
+    本站底色是 canvas 绘制的 mesh 渐变，axe 拿不到底色 → 相关节点永远进 `incomplete`。
+    必须用 `@contrast`（像素回读）核对，并**注意测试脚本自身的盲区**：
+    只要脚本开头有一步「关掉某个覆盖层」（如 `!click #introEnter`），
+    那个覆盖层自身就必然没被测过。开场页曾因此漏测（已补 `steps-contrast-intro.txt`）。
+    另外 **axe 的 `passes` 计数与页面状态相关**，报数时必须写明状态。
+16. **性能数字必须写清口径**（单位 KiB/KB、含不含文档、百分比分母），
+    并给出原始字节数。本项目踩过一次 ÷1000 与 ÷1024 混用造成的「假差额」。
+    优化动作必须逐条对应 `docs/qa/PERFORMANCE_BASELINE.md` 里的数字，
+    复跑同一套测量方式验证收益 —— **不要凭直觉加懒加载或预加载**。
 
 ---
 
@@ -128,6 +138,7 @@ tools/qa/run.sh steps-regression.txt      # 信封几何 / 音乐胶囊重叠 / 
 tools/qa/run.sh steps-visual-audit.txt    # 全流程逐章截图（产物在 .qa-out/）
 tools/qa/run.sh steps-theme-check.txt     # 三主题确定性巡章 + 兜底（§58 Template 硬指标）
 tools/qa/run.sh steps-contrast.txt        # canvas 像素回读对比度（@contrast）
+tools/qa/run.sh steps-contrast-intro.txt  # 开场页对比度（必须在点掉 #introEnter **之前**测）
 tools/qa/run.sh steps-config-security.txt # 注入面 / 尺寸预留 / 非法配置诊断（@cfgsec）
 
 # 零依赖 Node 回归（不需要浏览器、不需要服务器 —— 改配置相关代码后必跑）

@@ -1,5 +1,95 @@
 # Changelog
 
+## 1.5.0 — perf（2026-09-15）
+
+**按性能基线的第一条结论动手：首屏传输量降 32.6%，并顺手补掉一块从来没被验证过的无障碍盲区。**
+
+这轮的起点是「先有数字再动手」——上一轮刚建立的 `docs/qa/PERFORMANCE_BASELINE.md`
+指出两张只属于第 6 步相册的图片在首屏被完整下载。**但基线给的修法是错的**，
+按它做会测出零效果（详见下）。
+
+### perf(media) — 首屏总 transfer 729.71 → 491.61 KiB（−238.10 KiB / −32.63%）
+
+`assets/photos/landscape-08.jpg`（146.97 KiB）与 `landscape-02.jpg`（92.40 KiB）
+只在第 6 步「相册」出现，却在首屏被完整下载，占首屏 transfer 的 32.8%。
+
+**关键：基线的诊断对了，处方错了。** 基线（以及它的依据 `MEDIA_SCHEMA_RESEARCH.md`）
+都建议「给这两个 `<img>` 加 `loading="lazy"`」。代码复核推翻了因果：
+
+- `renderPhoto()` 在 **`DOMContentLoaded` 就会执行一次**（`script.js:138`），
+  而首屏时它所在的 `#question6` 在 `index.html:149` 就是 `class="question-section hidden"`
+  —— 主图 `<img>` 带 `loading="lazy"`，`display:none` 下永不进入视口，**本来就没加载**；
+- 真正跑出去的是同函数内的**相邻照片预取**（`script.js:518-541`），它用的是
+  **`new Image()`** —— 该属性只作用于解析出的 `<img>` 元素，**对 JS 手动创建的
+  `Image` 对象完全无效**。所以「加 lazy」必然测出零效果。
+- 铁证：被下载的恰好是索引 **7 和 1**，正是 `[photoIndex+1, photoIndex-1]` 在
+  `photoIndex=0` 时算出的两个下标。
+
+修法不是加属性，而是加**可见性守卫**（仅在照片章真的可见时预取）。
+代价：第一次进照片章后点「下一张」那一张无预取（有 `is-loading` + 揭幕动画兜底），之后恢复。
+
+实测（1440×900，3 次冷启动完全一致）：请求数 24 → 22，首屏图片 3 → 1（只剩 LCP 主图）。
+**反向验证**（防止「靠删功能把数字做好看」）：`setState({currentStep:6})` 进入后两张图仍被
+请求、可见照片与联系印样 8 张 `naturalWidth=1000` 真实渲染、`nextPhoto()` 切换正常。
+
+### fix(media) — 预取 URL 与渲染层不一致（同段代码里的潜在缺陷）
+
+预取原本写 `im.src = p.src`，而渲染层 `photoMediaHtml()` 用的是 `p.thumb || p.src`
+（`script.js:457`）。一旦用户配了 `thumb`，预取会白下载一整张原图——既浪费字节，
+又完全不会加快切换（浏览器真正要的是 `thumb`）。默认配置没有任何一项设 `thumb`，
+所以这个偏差一直没被暴露。已改为与渲染层取同一个 URL。
+
+### fix(a11y) — 补掉开场页的对比度盲区
+
+巡检 axe 输出时发现：`tools/qa/steps-contrast.txt` 的每一段都是
+`wait → !click #introEnter → wait → @contrast`，也就是**先把开场页关掉再测**。
+于是 `#introTitle` / `#introSub` / `#introEnter` 在所有测量里都是 `display:none`
+（axe 因不可见跳过；`@contrast` 第 106 行也跳过）。
+
+**后果**：axe 报的 `incomplete: color-contrast` 里，`#musicToggle` / `#smallThingText`
+是被 `@contrast` 手工判定过的，而**开场页这三个节点从来没被判定过**——它是每个访客
+看到的第一屏，却是唯一没有对比度证据的一屏。
+
+新增 `tools/qa/steps-contrast-intro.txt`（在点掉开场页**之前**跑 `@contrast`，
+三主题各一次）。实测全部通过 AA：
+
+| 主题 | canvas 极值 | 最差节点 | 比值 | AA 门槛 |
+|---|---|---|---|---|
+| warm-paper | rgb(242,213,192)→rgb(247,235,225) | `#introSub` 12px | **4.69:1** | 4.5 |
+| night-archive | rgb(12,10,9)→rgb(36,29,24) | `#introSub` 12px | **7.54:1** | 4.5 |
+| modern-paper | rgb(233,230,224)→rgb(251,250,248) | `#introSub` 12px | **5.59:1** | 4.5 |
+
+warm-paper 的 4.69:1 **擦着 AA 线过**，与既有全局最低值（`.share-btn`）并列。
+
+### docs(qa) — 性能基线加上口径与自洽性校验
+
+- `PERFORMANCE_BASELINE.md` 改为**双版本**（修复前 v=18 / 修复后 v=19），旧数字全部保留。
+- 修掉一处**单位换算不一致**：分组行误用 ÷1000（KB）而总计用 ÷1024（KiB），
+  造成「分组之和 735.1 ＞ 总计 717.9」的 17.2 KiB **假差额**（不是重复计入）。
+  现已统一为 **KiB 并附原始字节数**，并在文档里写死「子资源」「首屏总 transfer」
+  「百分比分母」三个口径，避免下一个人算出第三个总数。
+- `§5 假设 1` 的验证方法从「加 `loading='lazy'`」改为真实有效的「加可见性守卫」，
+  并把「`new Image()` 预取不受 lazy 约束」写进结论。
+- **如实标注未达显著**：LCP 在三个视口上均未测出统计显著的改善（390 捕获率仅 1/5，
+  开场缩放动画本身导致 644–3364ms 抖动），文档明确写「不能断言」，不拿方向性当结论。
+- `MEDIA_SCHEMA_RESEARCH.md` 补一条实测补记：`loading="lazy"` 只覆盖 HTML 里的图片；
+  只要代码存在 `new Image()` 等主动预取路径，懒加载策略必须逐条重新审计，不能靠属性推断。
+
+### 验证
+
+| 项 | 结果 |
+|---|---|
+| `node tools/qa/config-suite.js` | **99 passed / 0 failed** |
+| `node tools/qa/module-suite.js` | **63 passed / 0 failed** |
+| `node tools/qa/innerhtml-guard.js` | 11 处注入点，**0 违规** |
+| `steps-config-security.txt` ≈ 浏览器 | 注入面 `injectedImg:0`、4 条诊断路径正确、旧格式兼容、`touchUnder44=0` |
+| `steps-theme-check.txt` | `hScroll=no` ×31、`touchUnder44=0 min=44px` ×31、全程 `no-errors` |
+| `steps-regression.txt`（320×568 真实点击） | 无溢出、`underSized=[]`、信封几何通过 |
+| `agent-browser a11y`（开场页已关，与基线同状态） | **violations: 0 / passes: 16 / incomplete: 1**（`#musicToggle`，已由 `@contrast` 手工判定） |
+
+> axe 的 `passes` 数是**页面状态相关**的：开场页未关时是 15（多出 3 个开场页节点进 incomplete），
+> 关掉后是 16。两次 `violations` 都是 0。对比时请确认状态一致。
+
 ## 1.4.0 — harden（2026-09-15）
 
 **把「配置系统看起来是安全的」变成「配置系统被证明是安全的」，并顺手拆掉 `script.js` 的第一层边界。**
