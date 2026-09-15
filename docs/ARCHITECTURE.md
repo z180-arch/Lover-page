@@ -7,9 +7,12 @@ Lover-page 是零框架、零构建的纯静态单页应用。所有状态在内
 ```
 config.js ──► theme.js ──► CSS 变量（令牌）
     │
-    ├──► config-system.js（?conf= 分享配置：diff 编码 → 深合并 → schema 校验）
+    ├──► config-system.js（?conf= 分享配置：校验 diff → 安全深合并，顺序见下）
+    ├──► diagnostics.js（LPDiagnostics 运行时诊断通道，先于 config-system 加载）
     ├──► script.js（内容渲染 + 游戏逻辑 + 章节视觉层）
     ├──► state.js（currentStep 状态机 + View Transitions + 章节旅程）
+    ├──► js/core/text.js（esc / textPool / pickRandom）
+    ├──► js/chapters/gauge.js（刻度盘几何与计算）
     └──► js/intro.js（第一屏 + site 级背景，ESM）
 ```
 
@@ -28,15 +31,44 @@ config.js ──► theme.js ──► CSS 变量（令牌）
 `window.VALENTINE_CONFIG` = 运行时生效配置，必须是 `DEFAULT_CONFIG` 的**深拷贝** —— 浅拷贝会让两者共享嵌套对象，运行时改动反过来改掉基准，使 diff 失真。
 
 ### config-system（config-system.js）
-把配置塞进 URL 的分享机制。三段式：
+把配置塞进 URL 的分享机制。**权威契约见 `docs/architecture/CONFIG_CONTRACT.md`**，本文件是它的唯一执行者。
 
-1. **diff**：递归比对 `DEFAULT_CONFIG`，只保留不同的部分（敏感点是数组整体替换、对象逐键递归）。
+管线（**顺序是契约的一部分**）：
+
+```
+DEFAULT_CONFIG + diff → validate(diff, DEFAULTS) → mergeSafe(clone(DEFAULTS)) → 运行时配置
+                             ↑ 先校验 diff                 ↑ 再合并
+```
+
+1. **diff**：递归比对 `DEFAULT_CONFIG`，只保留不同的部分（数组整体替换、对象逐键递归）。
    - 为什么不是全量：全量序列化约 4–5KB、base64 后约 7KB，聊天软件常截断；且任何字段改名都会让旧链接失效。
    - 部署型用法（用户直接改 `config.js` 再部署）下 diff 天然为空 —— 这是**正确**的，因为收件人打开的是同一个站点，内容已经在文件里。
-2. **深合并**：把 diff 合回 `DEFAULT_CONFIG` 的副本。
-3. **schema 驱动校验**：以 `DEFAULT_CONFIG` 为形状基准递归 sanitize（字符串截断、数字有限性、数组限长、深度上限）。新增 schema 字段不需要改这个文件。
+2. **校验 diff**：以 `DEFAULT_CONFIG` 为形状基准递归比对 —— 拒绝未知字段、类型不符、危险键
+   （`__proto__` / `constructor` / `prototype`）、超长字符串/数组、超深嵌套。非法部分**根本不会进入合并**，
+   所以该位置天然保留默认值。每条拒绝都进 `LPDiagnostics`（`config` 区域）。
+3. **安全深合并**：把校验后的 diff 合回 `DEFAULT_CONFIG` 的副本；赋值走 `Object.defineProperty`，
+   避免触发 setter 或把 `__proto__` 当成原型赋值。
 
-历史教训：旧实现的校验硬编码在 `config.questions.*` / `config.celebration`（早已从 schema 移除的字段）上，且强制 `musicUrl` 以 `https://` 开头，导致分享链接会丢掉 `photos/story/theme/sound/experience/person` 和本地 BGM。
+> **顺序为什么不能反**：早期实现是「先深合并、再 sanitize 合并结果」。那有两个后果 ——
+> 未知字段会先被合并进来（旧 `sanitize` 只看值的类型，从不检查 key 在不在 schema 里），
+> 且非法值被丢弃后**默认值也一起丢了**（`quiz.answer` 收到字符串会变成字段消失，而不是回退默认答案）。
+> 改成先校验后，两个问题都不存在。改动这一段的顺序前请先读 `config-system.js` 的文件头注释。
+
+**形状 = 默认值的形状**，所以「默认值没展示但渲染层确实支持的字段」必须由 `EXTRA_SHAPES` 显式声明
+（`home.enTitle` / `meter.thresholds` / `ending.shareCopiedText` / 顶层 legacy `letters` 等 4 个字段
+就是加固后实测被误伤、再补回来的）。新增这类字段时同步六处，清单见契约 §12。
+
+历史教训：旧实现的校验硬编码在 `config.questions.*` / `config.celebration`（早已从 schema 移除的字段）上，
+且强制 `musicUrl` 以 `https://` 开头，导致分享链接会丢掉 `photos/story/theme/sound/experience/person` 和本地 BGM。
+更硬的一课是**原型污染曾经真的成立**：`JSON.parse` 会把 `{"__proto__":{…}}` 建成自有属性，
+所以它确实能走到合并逻辑里并改写 `Object.prototype`。现在有 6 个探针锁在 `tools/qa/config-suite.js` 第 3 组。
+
+### diagnostics（diagnostics.js）
+`window.LPDiagnostics` —— 统一的、可机读的诊断通道。7 个固定区域
+（`config / theme / chapters / media / runtime / performance / a11y`），每区域上限 200 条、
+前 40 条进 console，**永远不抛异常**（诊断自己坏掉不能连累运行时）。
+`report()` 输出运行摘要；需要真实布局的项（A11y / Overflow）如实标 `n/a`，由调用方注入，不编数字。
+配置写错时先看这里，不要靠猜。
 
 ### theme（theme.js）
 把 `config.colors`、`config.theme.fonts` 写入 CSS 变量。所有样式引用令牌（见 styles.css `:root`），禁止 inline 色值。

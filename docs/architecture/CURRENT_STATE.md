@@ -13,22 +13,26 @@
 |---|---|
 | 远程 | `https://github.com/z180-arch/Lover-page.git` |
 | 主分支 | `main` |
-| 历史基线 tag | `v1-template-foundation` |
-| 本轮起始 HEAD | `df6b8e9` |
+| 历史基线 tag | `v1-template-foundation` · `v1.3-theme-layer` · `v1.4-config-contract` |
+| 本轮起始 HEAD | `55832c2`（上一轮 1.3.1 的收口提交） |
 | 技术栈 | 零构建 / 零框架 / 纯静态 / Vanilla JS + CSS + HTML |
 | 依赖安装步骤 | **无**（无 `package.json`、无 `node_modules`） |
 | 运行方式 | `python -m http.server 8899 --bind 127.0.0.1` |
 | 部署 | 任意静态托管（同源、相对路径、vendor 本地化、无 CDN） |
+| 脚本加载顺序 | `themes/*` → `config` → **`diagnostics`** → `config-system` → `state` → `theme` → `vendor` → `js/core/text` → `js/chapters/gauge` → `script.js` → `js/intro.js`（顺序是契约，见 CONFIG_CONTRACT §10） |
 
 ## 2. 文件职责
 
 ```
 index.html            章节 DOM 骨架 + 脚本加载顺序 + 运行时错误探针
 config.js             唯一内容入口（导出 DEFAULT_CONFIG / VALENTINE_CONFIG）
-config-system.js      ?conf= 分享链接（diff → 深合并 → 形状校验）
+config-system.js      ?conf= 分享链接：校验 diff → 安全深合并（473 行）
+diagnostics.js        window.LPDiagnostics —— 运行时诊断注册表（175 行）
 state.js              appState 状态机 + 章节旅程 + 面板溶解标记 + View Transitions
 theme.js              主题令牌应用层（preset + 实例覆盖 → CSS 自定义属性）
-script.js             页面编排 + 各章节 renderer + 声音 + 分享（987 行）
+script.js             页面编排 + 各章节 renderer + 声音 + 分享（943 行）
+js/core/text.js       （拆分）window.LPText = esc / textPool / pickRandom（56 行）
+js/chapters/gauge.js  （拆分）window.LPGauge = 刻度盘几何与计算（142 行）
 js/intro.js           （ESM）第一屏 + site 级 mesh gradient
 styles.css            :root 令牌兜底 + 全站样式（含每章视觉语言）
 css/intro.css         第一屏样式
@@ -37,17 +41,21 @@ themes/night-archive.js
 themes/modern-paper.js
 themes/index.js       preset 注册表 + 解析
 vendor/               mesh-gradient（MIT）· GLightbox（MIT）
-tools/qa/             真实浏览器 QA：
-                        run.sh              本地运行器（注意 Windows 上 dirname 缺失，
-                                            手动用 node build-batch.js + agent-browser batch）
-                        build-batch.js      steps.txt → batch JSON（@name 展开为 .qa/<name>.js）
-                        diag.js / probe.js / theme.js / contrast.js   诊断脚本
+tools/media/          image-dims.js   零依赖图片尺寸探针（JPEG/PNG/WebP 头解析，--json / --snippet）
+tools/qa/             真实浏览器 QA + Node 回归：
+                        run.sh                 本地运行器（Windows 上 dirname 缺失，见 AGENTS §5）
+                        build-batch.js         steps.txt → batch JSON（@name 展开为 .qa/<name>.js）
+                        diag.js / probe.js / theme.js / contrast.js / probe-contract.js
+                        config-suite.js        ★ 99 断言：契约 / 安全 / 兼容（vm 独立 realm）
+                        module-suite.js        ★ 63 断言：LPText / LPGauge 纯函数
                         steps-mobile-320 / steps-mobile-390 / steps-regression
                         steps-theme-check（三主题确定性巡章）/ steps-contrast（像素回读）
+                        steps-config-security（注入面 / 尺寸预留 / 非法配置诊断）
 docs/research/        调研记忆（避免重复调研）
-docs/architecture/    架构与 ADR
+docs/architecture/    架构 · ADR · ★ CONFIG_CONTRACT.md（配置的唯一权威契约）
+docs/design/          设计系统 · 主题注册表 · COMPOSITION_SYSTEM（8 章叙事骨架分析）
+docs/qa/              PERFORMANCE_BASELINE.md（真实测得的性能基线）
 docs/product/         功能注册表
-docs/design/          设计系统与主题注册表
 ```
 
 ## 3. 章节状态
@@ -92,10 +100,16 @@ docs/design/          设计系统与主题注册表
 | `dissolveSteps` 声明 ↔ 实际 | 三套主题**逐章吻合** | `@theme` 逐章采样 |
 | 未知主题名兜底 | 退回 `warm-paper`，无未捕获异常 | `?theme=does-not-exist` |
 | 主题 QA 批次失败项 | **0 / 115 条命令** | `steps-theme-check.txt` |
+| 配置契约 / 安全断言 | **99 passed / 0 failed** | `node tools/qa/config-suite.js` |
+| 拆分模块单元断言 | **63 passed / 0 failed** | `node tools/qa/module-suite.js` |
+| 注入面（`renderPhoto`） | 恶意 `date` payload 被转义，`injectedImg: 0` | `steps-config-security.txt` |
+| 照片尺寸预留 | `attrW/attrH` 与 `naturalW/naturalH` 一致，`object-position` 由 `focalPoint` 驱动 | `steps-config-security.txt` |
+| 非法 `?conf=` 诊断 | 4 条诊断（`unknown-field` ×2 / `type-mismatch` ×2），配置回退默认 | `steps-config-security.txt` |
+| 旧格式 photos 兼容 | 0 诊断、`attrW: null`（渲染层能处理缺失） | `steps-config-security.txt` |
 
-**尚未测量**：LCP / CLS / INP 实际数值。零构建项目没有 Lighthouse 集成，
-且网格渐变 canvas 会在不同设备上表现不同。**不要声称性能数字**，
-直到有人真的用 Lighthouse 在这台机器上跑过并记录结果。
+**性能数值**：LCP / CLS / TTFB / FCP 已用 `agent-browser vitals` 在 320×568 / 390×844 / 1440×900
+真实测得（本地 http、无 gzip，**不代表线上数字**），见 `docs/qa/PERFORMANCE_BASELINE.md`。
+INP 在纯加载场景下测不到（无交互输入），文档里如实标注为未测得 —— 不要从别处借一个数字来填。
 
 ### QA 工具链的两个坑（踩过，别重踩）
 
@@ -111,16 +125,23 @@ docs/design/          设计系统与主题注册表
 
 ## 6. 已知问题（真实存在，未修）
 
+**本轮（1.4.0）已解决、从下表移除**：语义校验层缺失（现由 `config-system.js` + `diagnostics.js`
++ `CONFIG_CONTRACT.md` 三层承担）、`photos` 无 `width/height`、`photos` 无 `focalPoint`、
+`renderPhoto()` 的注入面、`fillPercent(NaN)` 静默画不出弧线、`touchUnder44` 假失败、
+`esc()` 覆盖面无机制保障（新增 `tools/qa/innerhtml-guard.js`）。
+
 | # | 问题 | 影响 | 位置 |
 |---|---|---|---|
-| 1 | 语义校验层缺失 | 配置写错只表现为「某处文案没出现」，没有明确报错 | ADR-002 §Migration |
-| 2 | `photos` 无 `width/height` | 图片加载前容器高度未知 → 潜在 CLS | ADR-004 |
-| 3 | `photos` 无 `focalPoint` | 竖构图照片居中裁切，可能切到主体 | ADR-004 |
-| 4 | 字体子集化未做 | Windows/Android 上中文衬线渲染不一致；排版质感依赖系统字体 | ROADMAP |
-| 5 | 信封壳 / 信纸对比度过低 | 两者都是浅奶油（`#fdfaf3→#f7eadd` vs `#f7eadd→#efdccb`），材质的「厚度感」仍不足，读起来偏平。**颜色已全部令牌化**（`--sheet-bg` / `--flap-bg` / `--tape` / `--seal`），所以换主题会跟着走，但暖纸主题下这组值本身区分度不够 | 视觉审计 |
-| 6 | `script.js` 987 行 | 接近但未超 ADR-001 的 1400 行门槛（本轮 +39 行：kicker 渲染、跳章判定、主题取值） | ADR-001 |
-| 7 | 时间轴章未实现 | `story.timeline` 字段已预留但无 renderer | ROADMAP |
+| 1 | **字符串字段没有协议白名单** | `photos[0].src` 可以是 `javascript:` / `data:text/html,…`。转义（`esc()`）挡住了标签注入，但**不挡协议**。当前威胁模型是「自己改自己的 config」，所以可接受 —— 但做在线编辑器之前必须补 | `config-system.js` §13 |
+| 3 | 字体子集化未做 | Windows/Android 上中文衬线渲染不一致；排版质感依赖系统字体 | ROADMAP |
+| 4 | 信封壳 / 信纸对比度过低 | 两者都是浅奶油（`#fdfaf3→#f7eadd` vs `#f7eadd→#efdccb`），材质的「厚度感」不足，读起来偏平。**颜色已全部令牌化**（`--sheet-bg` / `--flap-bg` / `--tape` / `--seal`），换主题会跟着走，但暖纸主题下这组值本身区分度不够 | 视觉审计 |
+| 5 | 默契章（壹）缺少「自己的物类」 | `docs/design/COMPOSITION_SYSTEM.md` 逐章比对 8 章的叙事骨架，发现其余各章都有专属视觉语言，唯有「默契」只是「对话选项」，还没像首页那样有一个可辨识的核心物件（首页有舞台卡 + 玫瑰、档案章有展签 + 印样索引） | COMPOSITION_SYSTEM §5 |
+| 6 | `script.js` 943 行 | 低于 ADR-001 的 1400 行门槛，拆分第一层已落地（`js/core/text.js` + `js/chapters/gauge.js`）。下一层目标见 ADR-001，**不要为拆而拆** | ADR-001 |
+| 7 | 时间轴章未实现 | `story.timeline` / `promises` / `memories` 字段已预留且契约已声明项形状，但无 renderer | ROADMAP |
 | 8 | `--ink-muted` 已加入令牌但无使用点 | 死令牌（纯装饰档预留） | styles.css |
+| 9 | 契约里的「保留区」字段没有读取方 | `metadata.author/created/version`、整个 `media.*`、`experience.chapters[].id`、`person.avatar/birthday/relationship`、`floatingEmojis.*` 能通过校验但没有渲染层读它们。**不要在这个基础上写新代码** | CONFIG_CONTRACT §7 |
+| 10 | 数字字段无区间校验 | `theme.motion.petalCount: 99999`、`sound.volume: 900` 都会被接受；夹取在渲染层。契约层只保证类型与安全 | CONFIG_CONTRACT §13 |
+| 11 | 无 CSP | 静态站可加 `Content-Security-Policy` meta，但当前内联脚本较多，加了会破。需要先分离内联脚本 | index.html |
 
 ## 7. 明确不做（不要再"顺手加上"）
 

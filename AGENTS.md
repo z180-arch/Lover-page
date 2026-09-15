@@ -35,14 +35,23 @@ index.html
   ├── themes/index.js    主题注册表与解析（含 ?theme= 临时预览）
   ├── config.js          唯一内容入口 → window.DEFAULT_CONFIG（diff 基准，不可污染）
   │                                     window.VALENTINE_CONFIG（运行时配置，必须是深拷贝）
-  ├── config-system.js   ?conf= 分享链接：diff → 深合并 → schema 驱动校验
+  ├── diagnostics.js     window.LPDiagnostics 运行时诊断通道（必须在 config-system 之前加载）
+  ├── config-system.js   ?conf= 分享链接：校验 diff → 安全深合并（先校验，再合并）
   ├── state.js           window.appState 状态机 + 章节旅程 + 面板溶解标记
   ├── theme.js           令牌应用层：preset + config 覆盖 → CSS 自定义属性
+  ├── js/core/text.js    （拆分）window.LPText = esc / textPool / pickRandom
+  ├── js/chapters/gauge.js （拆分）window.LPGauge = 刻度盘几何与计算
   ├── script.js          各章节 renderer + 游戏逻辑 + 声音 + 分享
   └── js/intro.js        （ESM）第一屏 + site 级 mesh gradient 背景
 ```
 
+**脚本加载顺序是契约的一部分**（`config` → `diagnostics` → `config-system` …），
+改动顺序前先看 `docs/architecture/CONFIG_CONTRACT.md` §10。
+
 **唯一内容入口是 `config.js`。** 想让内容可配置而去找别的地方，方向就错了。
+
+**字段级的权威说明在 `docs/architecture/CONFIG_CONTRACT.md`** —— 8 个 Schema 的逐字段表、
+每个字段的**实际读取方**、拒绝语义、诊断 code。想知道「有没有这个字段」「谁在读它」，查契约，不要靠猜。
 
 **唯一视觉入口是 `themes/*.js` + `styles.css` 的 `:root` 令牌。**
 业务 CSS 里出现明确色值 = 缺陷。
@@ -70,6 +79,10 @@ index.html
     新增独立职责请按 §7 的模块契约拆出去，**但不要为了模块化一次性重写整个项目**。
 13. **不要在没有浏览器实测的情况下声称视觉质量。** CSS 好看 ≠ 浏览器里好看。
     以浏览器为准。
+14. **所有 HTML 拼接必须走 `esc()`**（`js/core/text.js` 的 `window.LPText.esc`，
+    `script.js` 里是薄封装）。它是本项目的**唯一**安全边界。
+    新增一处 `innerHTML` 拼接后跑 `node tools/qa/innerhtml-guard.js` ——
+    守卫要求要么用 `esc()`，要么写 `// html-safe: <理由>`，不允许沉默通过。
 
 ---
 
@@ -115,12 +128,27 @@ tools/qa/run.sh steps-regression.txt      # 信封几何 / 音乐胶囊重叠 / 
 tools/qa/run.sh steps-visual-audit.txt    # 全流程逐章截图（产物在 .qa-out/）
 tools/qa/run.sh steps-theme-check.txt     # 三主题确定性巡章 + 兜底（§58 Template 硬指标）
 tools/qa/run.sh steps-contrast.txt        # canvas 像素回读对比度（@contrast）
+tools/qa/run.sh steps-config-security.txt # 注入面 / 尺寸预留 / 非法配置诊断（@cfgsec）
+
+# 零依赖 Node 回归（不需要浏览器、不需要服务器 —— 改配置相关代码后必跑）
+node tools/qa/config-suite.js             # 配置契约 / 安全 / 兼容（99 断言，vm 独立 realm）
+node tools/qa/module-suite.js             # js/core + js/chapters 纯函数（63 断言）
+node tools/qa/innerhtml-guard.js          # 转义覆盖面静态守卫（新增注入点必须 esc() 或注明 html-safe）
+
+# 素材：读图片原始像素尺寸（写进 photos[].width/height 用）
+node tools/media/image-dims.js assets/photos/*.jpg          # 人类可读
+node tools/media/image-dims.js --snippet assets/photos/*.jpg # 直接产出可粘贴的字段片段
 
 # 无障碍（基线：0 violations / 16 passes）
 agent-browser a11y --tags wcag2a,wcag2aa,wcag21a,wcag21aa
 
 # 临时预览某个主题（不入库）
 http://127.0.0.1:8899/index.html?theme=night-archive
+
+# 配置写错时的第一手证据（控制台）
+LPDiagnostics.report()          # 摘要：Runtime / Theme / Config / Chapters / Media …
+LPDiagnostics.list('config')    # 每一条被拒绝/修正的字段（路径 + 期望 + 实际 + 回退）
+ValentineConfig.auditPayload(confValue)   # 只校验一个 ?conf= 载荷，无副作用
 ```
 
 > ⚠️ `run.sh` 内部用 `dirname` 定位自身路径。本沙箱的 PortableGit 在 shell 启动
@@ -199,23 +227,44 @@ tools/qa/<probe>.js  一个诊断断言（块注释、返回字符串、无副�
   → 写 `docs/design/THEME_REGISTRY.md` → 跑 `steps-theme-check.txt`。
 - 新诊断 → 加 `tools/qa/<name>.js` + 在 steps 文件里用 `@<name>` 引用。
 
-`script.js` 的**已识别待拆分方向**（见 ADR-001）：`Sound`（无 DOM 依赖的合成音效）、
-仪表几何计算（纯函数）、照片/信件/惊喜渲染。拆分时**必须保留全局函数名**
-（HTML 里有 `onclick="showNextQuestion(2)"` 这类内联调用），走兼容层。
+新建独立职责时必须同步的六处（默认值 / 执行者 / 契约 / CONFIG_SCHEMA / examples / QA）
+见 `docs/architecture/CONFIG_CONTRACT.md` §12。
+
+`script.js` 的拆分状态（见 ADR-001）：**已完成** `js/core/text.js`（`esc` / `textPool` / `pickRandom`）
+与 `js/chapters/gauge.js`（刻度盘几何与计算）。**待拆**：`Sound`（无 DOM 依赖的合成音效）、
+照片渲染。拆分时**必须保留全局函数名**（HTML 里有 `onclick="showNextQuestion(2)"` 这类内联调用），
+做法是在 `script.js` 里留一行薄封装：
+
+```js
+const esc = window.LPText.esc;                              // 值
+const gaugeAngleFor = (v) => window.LPGauge.angleFor(v);    // 函数（注意：不要直接赋引用，
+                                                            // 否则将来换实现时旧引用会被缓存住）
+```
+
+**拆分的目的是给下一个 Agent 一个可单独读懂的文件，不是为了行数好看。**
+没有真实职责边界时不要拆。
 
 ---
 
 ## 8. 当前状态与下一步
 
 - 当前 HEAD 与各章状态见 [docs/architecture/CURRENT_STATE.md](docs/architecture/CURRENT_STATE.md)
+- 配置字段的权威说明见 [docs/architecture/CONFIG_CONTRACT.md](docs/architecture/CONFIG_CONTRACT.md)
+- 性能基线（实测）见 [docs/qa/PERFORMANCE_BASELINE.md](docs/qa/PERFORMANCE_BASELINE.md)
+- 8 章叙事骨架分析见 [docs/design/COMPOSITION_SYSTEM.md](docs/design/COMPOSITION_SYSTEM.md)
 - 功能清单见 [docs/product/FEATURE_REGISTRY.md](docs/product/FEATURE_REGISTRY.md)
 - 主题清单见 [docs/design/THEME_REGISTRY.md](docs/design/THEME_REGISTRY.md)
 - 下一步优先级见 [docs/ROADMAP.md](docs/ROADMAP.md)
 
 **已识别但未做（不要以为是遗漏）**：
-- 字体子集化（需要一个离线预处理脚本，不能因此引入构建系统）
-- 时间轴 / 共同经历章（`story.timeline` 字段已预留）
-- 全息照片卡片（`vanilla-tilt.js` MIT 可移植，shine/glare 需自研 + 触摸回退）
+- 字体子集化（需要一个离线预处理脚本，不能因此引入构建系统）—— 当前最高价值项
+- 按 `PERFORMANCE_BASELINE.md` 的数字做性能优化（先有数字再动手，不要凭直觉加懒加载）
+- 时间轴 / 共同经历章（`story.timeline` 字段已预留，契约已声明项形状）
+- 全息照片卡片（`vanilla-tilt.js` MIT 可移植，shine/glare 需自研 + 触摸回退；
+  注意 `photos[].style` 目前**不在契约里**，要先有读取方再声明字段）
+- 组合系统渐进落地（`docs/design/COMPOSITION_SYSTEM.md`；一次一章，从 editorial / memo 开始）
+- `esc()` 覆盖面的静态检查（本轮手工审计发现并修掉了 `renderPhoto()` 的漏点，
+  但还没有机制阻止下一个人再漏一次）
 - 在线编辑器 / 云端保存 / 账号 / 模板市场（**当前无证据证明需要，不要提前做**）
 
 ---

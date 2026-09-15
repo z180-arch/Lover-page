@@ -47,6 +47,22 @@
 
 ## 2. 已评估但**未采用**（附原因 —— 这部分比「采用了什么」更省时间）
 
+### 媒体 / 图片加载四件套（2026-09-15 核实，详见 `MEDIA_SCHEMA_RESEARCH.md`）
+
+四个候选全部为 **MIT**（stars / 许可证 / LICENSE 原文均经 GitHub API + LICENSE 文件实测核实），
+**结论是四个都不采用** —— 因为 8 张本地 jpg 的规模下，原生 `width`/`height` +
+`object-position` + `loading="lazy"` 就是完整解，引库只会增加维护面。
+
+| 项目 | 仓库 | 许可证 | stars | 维护 | 不采用的原因 |
+|---|---|---|---|---|---|
+| vanilla-lazyload | https://github.com/verlok/vanilla-lazyload | MIT | 7854 | 活跃 | 原生 `loading="lazy"` 已够；引库要处理它的配置面与滚动监听 |
+| lazysizes | https://github.com/aFarkas/lazysizes | MIT | 17716 | **功能停滞**（默认分支源码最新 commit 2021-05） | 同上，且 `updated_at` 的活动无法确认是否人力维护 |
+| smartcrop.js | https://github.com/jwagner/smartcrop.js | MIT | 12953 | 活跃 | 内容感知裁切的**思路**值得借鉴（本项目用 `focalPoint` 手填），但它是离线计算工具，`canvas` 依赖引入成本不划算 |
+| lozad.js | https://github.com/ApoorvSaxena/lozad.js | MIT | 7494 | 低活跃 | 同 vanilla-lazyload，且它是 IntersectionObserver 的薄封装，自己写 10 行即可 |
+
+**需要它们时的触发条件**：照片数量超过 50 张、或引入 `srcset` 多分辨率管道时再重新评估。
+届时 `smartcrop.js` 可作离线 `focalPoint` 生成器（MIT，可复制）。
+
 ### simeydotme/pokemon-cards-css
 
 | 字段 | 值 |
@@ -156,8 +172,10 @@
 
 | 项目 | 触发条件 |
 |---|---|
-| PhotoSwipe v5 | ADR-004 的 `width/height` 落地之后 |
+| **PhotoSwipe v5** | ⚠️ **触发条件已满足** —— `photos[].width/height` 已在 1.4.0 落地（8 张默认图按实测像素填写），PhotoSwipe 的招牌过渡动画现在有数据可用了。下次做照片章时值得重新评估它 vs 当前 GLightbox（PhotoSwipe 的 pinch/zoom 与过渡质量更好）。评估时注意它是 ES module |
+| smartcrop.js | 照片数量 > 50 张，或需要自动生成 `focalPoint` 时 |
+| vanilla-lazyload / lozad.js | 照片数量 > 50 张（原生 `loading="lazy"` 不够用时） |
 | Nutlope/hallmark | 用户确认安装（需过安全审计） |
 | CSS `animation-timeline` | 实现时间轴章 / 滚动叙事时 |
-| 图像离线预处理脚本 | 需要 `srcset` / AVIF 时（`tools/media/`） |
+| 图像离线预处理脚本 | 需要 `srcset` / AVIF 时（`tools/media/` 已建，含 `image-dims.js`） |
 | 中文 webfont 子集化 | 需要跨平台一致的排版质感时（需离线脚本，**不引入构建系统**） |

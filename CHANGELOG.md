@@ -1,5 +1,165 @@
 # Changelog
 
+## 1.4.0 — harden（2026-09-15）
+
+**把「配置系统看起来是安全的」变成「配置系统被证明是安全的」，并顺手拆掉 `script.js` 的第一层边界。**
+
+这轮的起点是一份不信任上一轮结论的独立审查：先复核 git 状态与全部架构文档，
+再把 `config-system.js` 的每一条声明都写成可执行断言去证伪。结果是**它说的和它做的不一样** ——
+`?conf=` 是唯一从外部不可信输入进入运行时的入口，而它当时有 6 个真实缺陷（不是理论风险）。
+
+### fix(config) — P0：实测撞到的 6 个真实缺陷
+
+全部由 `tools/qa/config-suite.js` 复现并锁死，修复后 99 条断言通过。
+
+| # | 缺陷 | 实际后果 | 修法 |
+|---|---|---|---|
+| 1 | **原型污染** | `?conf=eyJfX3Byb3RvX18i...`（`{"__proto__":{...}}`）真的写进了 `Object.prototype`。`JSON.parse` 会把 `__proto__` 建成**自有属性**，所以它确实能走到合并逻辑里 | 危险键黑名单 + `define()`（`Object.defineProperty`）赋值 + 合并层二次跳过，三层防护 |
+| 2 | **未知字段不被拒绝** | `theme.unknownField` / `person.evilField` / 数组项里的未知子字段全部**照单全收**。旧 `sanitize()` 只看值的类型，从不检查 key 是否在 schema 里 —— 于是「拒绝未知字段」这条结论从未成立 | `hasOwn(base,k)` 白名单，未知 key 记录 `unknown-field` 后丢弃 |
+| 3 | **类型不匹配不被拒绝** | `quiz.answer: "two"` 会被接受；更糟的是**非法值被丢弃后默认值也一起丢了** —— `answer` 整个消失，而不是回退到默认的 `2` | 按默认值类型做叶子类型检查；非法 → 丢弃该项 → **父级保留默认值** |
+| 4 | **空串被静默丢弃** | `photos[0].caption: ""` 无法清空一个字段，总是回退默认文案 | 字符串分支区分「空串（合法值）」与「类型不符」 |
+| 5 | **深合并无深度守卫** | 深层嵌套有栈溢出风险 | `LIMITS.depth = 8`，`mergeSafe()` 递归前先判 |
+| 6 | **`?conf=` 无长度上限** | 一个几 MB 的参数会被完整 `atob` + `JSON.parse` —— 把「打开链接」变成拒绝服务 | 解码**前**检查 `LIMITS.encoded = 24000` |
+
+### fix(config) — 顺序错了：改为「先校验 diff，再合并」
+
+原管线是「先深合并、再 sanitize 合并结果」。这个顺序同时造成缺陷 #2 和 #3 ——
+非法值先进入配置，sanitize 只能做事后补救，而它没有 schema 信息。
+
+新管线：
+
+```
+默认值 + diff → validate(diff, DEFAULTS) → mergeSafe(clone(DEFAULTS), clean) → 运行时配置
+                     ↑ 先校验                 ↑ 再合并
+```
+
+副作用修正：diff 为空时分享链接**不再带 `conf=e30=`**（base64 的 `{}`）。
+旧行为无害，但让链接看起来像带参数，收件人还要白跑一遍解码 + 校验。
+
+### feat(config) — 真 schema 校验层 + 契约文档
+
+- 新增 **`docs/architecture/CONFIG_CONTRACT.md`**：8 个 Schema（Metadata / Media / Theme /
+  Content / Experience / Story / Sound / Person）的逐字段表，含类型、默认值、**实测 grep 出来的
+  读取方**、兼容矩阵、拒绝语义表、诊断 code 表，以及「改一个字段要动哪六处」的强制清单。
+- `config-system.js` 成为契约的**唯一执行者**，文件头写明管线顺序与「为什么这样排序」。
+- 发现并修掉「加固引入的回归」：默认值是**范例**，所以渲染层在读、默认值却没写的字段
+  会被新校验误伤。实测撞到 **4 个**，用 `EXTRA_SHAPES` 显式声明补回：
+
+  | 字段 | 谁在读 |
+  |---|---|
+  | `home.enTitle` | `script.js:104` 首页英文手写标题 |
+  | `meter.thresholds.{normal,high,extreme}` | `script.js:329` 默契值分档文案 |
+  | `ending.shareCopiedText` | `script.js:934` 复制成功后的按钮文案 |
+  | 顶层 legacy `letters[]` | `script.js:224/622/675` 的回退路径 |
+
+  同一张表还给 `story.timeline/promises/memories`（默认是空数组，无法展示项形状）
+  和 `photos[]` 的 `title/description/date/place/location/thumb` 补了形状声明 ——
+  否则用户无法通过分享链接设置这些渲染层**确实支持**的字段。
+
+  关键约束：`EXTRA_SHAPES` 只**补充**字段，绝不把整个对象变成开放槽位。
+  套件用负向断言锁住了这一点（`home.evilField` 依然被拒绝）。
+
+### feat(diag) — `window.LPDiagnostics` 运行时诊断通道
+
+配置写错时的旧表现是「某个地方就是没显示」，作者与 Agent 只能靠猜。
+
+- 7 个固定区域：`config / theme / chapters / media / runtime / performance / a11y`；
+  每区域上限 200 条（防畸形输入刷爆内存），前 40 条进 console（防刷屏淹掉真错误）。
+- 永远不抛异常 —— 诊断自己坏掉不能连累运行时。
+- `report()` 输出 `Runtime / Theme / Config / Chapters / Media / A11y / Overflow / JS Errors`；
+  需要真实布局的项**如实标 `n/a`** 而不是编一个数字。
+- 加载顺序成为契约的一部分：`config.js` → `diagnostics.js` → `config-system.js`。
+
+### fix(media) — 照片 schema：尺寸预留 + 注入面
+
+- `photos[]` 新增 `width` / `height` / `alt` / `focalPoint:{x,y}`，8 张默认图全部按
+  **实测原始像素**填写（`node tools/media/image-dims.js` 读出，新增零依赖探针）。
+  实测这 8 张图的比例并不统一（1.50 / 1.68 / 1.78）—— 这就是过去切图会顶一下下方内容的直接原因。
+- 渲染层：`<img>` 带 `width`/`height` 属性 + `loading="lazy"` + `decoding="async"`；
+  `focalPoint` 写进 `object-position`（渲染层做 0~100 夹取），CSS 走 `--photo-focus` 令牌。
+- **修掉一处真实的 XSS 面**：`renderPhoto()` 是唯一没有走 `esc()` 的 renderer ——
+  5 处配置值直接拼进 `innerHTML`（`src` / `alt` / `date` / `place` / 图注 / 错误文案）。
+  实测 payload `"><img src=x onerror=…>` 现在被转义（`injectedImg: 0`）。
+
+### feat(qa) — `innerhtml-guard.js`：把「靠记得」变成「有机制」
+
+修掉 `renderPhoto()` 之后做了一次**完整审计**：全部源码里共 **11 处** HTML 注入点
+（`innerHTML` / `insertAdjacentHTML`），逐个核对，结论是 0 处未转义 ——
+其中 4 处是 `innerHTML = ''` 清空、1 处（`gauge.js`）只拼数字、其余 6 处全部走 `esc()`。
+
+但审计是一次性的。新增 `tools/qa/innerhtml-guard.js`（零依赖、约 130 行）把结论固化成守卫：
+每一处 `innerHTML =` 必须满足三者之一 ——
+
+1. 表达式里出现 `esc(`
+2. 表达式是**纯字面量**（含空串，无 `${}` / 无 `+` 拼接）
+3. 同一行或上一行有 **`// html-safe: <理由>`** 注释
+
+第 3 条是关键：它不是白名单，而是**要求作者陈述理由**。当前有 2 处使用它 ——
+`script.js:484`（`photoMediaHtml()` / `plateHtml` 内部已 esc）与
+`js/chapters/gauge.js:85`（`html` 只由 `fmt()` 和刻度数字拼成）。下一个人读到的是
+一句说明，而不是一片沉默。
+
+守卫同时充当**审计报告**：跑一次就知道总共有多少处注入点、分别靠什么保证安全。
+
+### refactor(script) — 渐进拆分第一层（不重写）
+
+按 ADR-001 的路径拆出两个**纯函数 / 纯计算**模块，`script.js` 里留同名薄封装，
+所有既有 `window.*` 与全局函数签名不变：
+
+- `js/core/text.js` → `window.LPText` = `esc` / `textPool` / `pickRandom`
+- `js/chapters/gauge.js` → `window.LPGauge` = 刻度盘几何与计算
+
+拆分暴露了一个真实缺陷：`fillPercent(NaN)` 返回 `NaN`，于是 `strokeDasharray="NaN 100"` ——
+弧线会**静默画不出来**。已加 `Number.isFinite` 守卫。
+
+### test(qa) — 从「跑一遍看看」变成「跑一遍断言」
+
+| 套件 | 断言 | 覆盖 |
+|---|---|---|
+| `tools/qa/config-suite.js` | **99** | 合法覆盖 / 未知字段 / 原型污染（6 探针）/ 尺寸类型边界 / 损坏输入 / 本地 BGM / legacy 兼容 / 诊断输出 / 照片 schema / `EXTRA_SHAPES` / examples 一致性 |
+| `tools/qa/module-suite.js` | **63** | `LPText`（含注入不变量）/ `LPGauge`（含 NaN 安全） |
+| `tools/qa/steps-config-security.txt` | — | 真实浏览器：注入面、尺寸预留、非法配置诊断、legacy 照片兼容 |
+
+两套 Node 套件用 `vm` 造**独立 realm**，每个用例一份独立 `Object.prototype` ——
+原型污染既不会串到下一个用例，也能被独立检出。零依赖、零构建、不需要浏览器。
+
+第 11 组是**示例与契约的一致性守卫**：把 `examples/*.js` 里的 `DEFAULT_CONFIG` 当作一个
+`?conf=` 载荷，喂给与首屏完全相同的解析路径，断言它不产生任何诊断。理由是示例会被使用者
+照抄 —— 示例里有契约外的字段（或拼错的字段名），抄的人就会踩到一个自己看不懂的静默拒绝。
+
+同时修掉 `tools/qa/theme.js` 的一处**假失败**：`touchUnder44` 会撞上开场动画里
+缩放中的按钮（量到 43.x px）。现改为跳过正在动画的元素并输出
+`measured=N animating=N`，让「哪些没量」变成可见信息而不是隐藏的通过。
+
+### fix(examples) — 示例页因为我这轮拆分而坏掉（自查发现）
+
+`examples/preview.html` 只加载了 `script.js`，没有加载本轮新拆出的
+`js/core/text.js`（`window.LPText`）和 `js/chapters/gauge.js`（`window.LPGauge`），
+也没有加载 `diagnostics.js`。`script.js` 顶部的兼容层是 `const esc = window.LPText.esc;` ——
+模块缺失会直接抛 `TypeError`，**整个示例页白屏**。
+
+拆分时只改了 `index.html` 的加载列表，忘了示例页也在加载同一批文件。
+已补齐三个脚本并按主站对齐 `?v=18`。
+
+顺手修掉两处与项目自身规则不一致的地方：
+
+- `examples/*.js` 里 `window.VALENTINE_CONFIG = { ...window.DEFAULT_CONFIG }` 是**浅拷贝** ——
+  正是 `config.js` 注释里明确警告过的写法（浅拷贝会让运行时改动污染 diff 基准）。已改为深拷贝。
+- 示例的照片条目补上 `width/height/alt/focalPoint`，让示例真正演示本轮的媒体 schema
+  （`example-romantic` 还给星空图加了 `focalPoint: {x: 0.5, y: 0.35}` 作为裁切焦点的用法示例）。
+
+### docs
+
+- 新增 `docs/architecture/CONFIG_CONTRACT.md`、`docs/design/COMPOSITION_SYSTEM.md`、
+  `docs/research/MEDIA_SCHEMA_RESEARCH.md`、`docs/qa/PERFORMANCE_BASELINE.md`
+- `docs/CONFIG_SCHEMA.md` 指向契约文档并说明「形状 = 默认值的形状」这条规则
+- `docs/architecture/CURRENT_STATE.md`、`docs/ROADMAP.md`、`AGENTS.md` 同步本轮的
+  新工具、新套件与新已知问题
+
+### 版本号
+
+`index.html` 全部 `?v=17` → **`?v=18`**（这一轮改了有行为差异的 CSS 与 JS）。
+
 ## 1.3.1 — verify（2026-09-15）
 
 **主题验证收口：把「0 violations」从一句结论变成可复现的证据，并修掉 QA 工具链的假失败。**

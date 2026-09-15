@@ -2,6 +2,30 @@
 
 所有内容在 `config.js`。五层结构（metadata / media / theme / Content / experience），均可独立替换。标 `?` 的字段可省略。
 
+> **这份文档是「怎么改」的教程；字段级权威契约在 `docs/architecture/CONFIG_CONTRACT.md`。**
+> 两者冲突时以契约为准。契约里有每个字段的类型、默认值、**实际读取方**、拒绝语义表和诊断 code 表。
+
+## 一条必须先知道的规则：形状 = 默认值的形状
+
+校验层没有独立的 schema 表 —— 它把 `config.js` 的默认值**当作** schema 递归比对：
+
+- 默认值是对象 → 该位置只接受默认值里出现过的 key，**未知字段被拒绝**
+- 默认值是数组 → **整体替换**，不逐项合并（所以「删掉一张照片」是可表达的）
+- 默认值是空对象 `{}` / 空数组 `[]` → **开放槽位**，形状由你决定（`theme.components` 属于此类）
+
+两个直接后果：
+
+1. **默认值没写的字段，用户就无法通过分享链接设置它。** 所以「可选字段」也必须在默认值里声明 ——
+   `photos[]` 的 `focalPoint` 每张图都显式写了，就是这个原因。
+2. 渲染层在读、默认值却没有的字段，由 `config-system.js` 的 `EXTRA_SHAPES` 显式补声明
+   （例如 `home.enTitle`、`meter.thresholds`、`ending.shareCopiedText`）。
+
+**新增一个可配置字段时，六处必须同步**：默认值 / 执行者 / `CONFIG_CONTRACT.md` / 本文档 /
+`examples/` / `tools/qa/config-suite.js`。详见契约 §12。
+
+配置写错时不要靠猜 —— 打开控制台跑 `LPDiagnostics.report()`，或
+`LPDiagnostics.list('config')` 看每一条被拒绝/修正的字段（含路径、期望类型、实际值、回退结果）。
+
 > 主题不是「一层」，而是**两层**：`themes/*.js` 里的整套视觉预设（结构层），叠加 `config.theme` 里的实例级覆盖（差异层）。
 > 详见下方 `## theme`。渲染管线：`themes/<preset>.js` → `themes/index.js`（解析）→ `theme.js`（合并 + 写 CSS 变量）。
 
@@ -97,7 +121,15 @@ axe-core 的 `color-contrast` 对本项目**不可信** —— mesh gradient 由
 - `quiz: { text, options[4], answer, correctText, wrongText, nextBtn }`（`options` 为空 → 该章自动跳过）
 - `meter: { text, startText, doneText, nextBtn, thresholds?: {normal,high,extreme} }` + `loveMessages`
 - `randomQuestions[]`、`smallThings[]`
-- `photos[]`：`{ src, caption` + 可选 `thumb, title, date, place/location, description }`（旧格式 `{src,caption}` 完全兼容；thumb 用于索引条，src 用于灯箱原图）. `src` 以 `.mp4/.webm/.mov/.ogg/.m4v` 结尾即按视频渲染
+- `photos[]`：`{ src, caption, width?, height?, alt?, focalPoint?, thumb?, title?, description?, date?, place?/location? }`
+  （旧格式 `{src,caption}` 完全兼容，不产生任何警告；thumb 用于索引条，src 用于灯箱原图）。`src` 以 `.mp4/.webm/.mov/.ogg/.m4v` 结尾即按视频渲染。
+
+  | 字段 | 为什么值得填 |
+  |---|---|
+  | `width` / `height` | **强烈建议填**。原始像素尺寸 —— 有它浏览器才能在图片下载完之前就预留正确高度，否则每次切图都会把下方内容顶一下（CLS 布局偏移）。不知尺寸跑 `node tools/media/image-dims.js assets/photos/*.jpg` |
+  | `focalPoint` | `{x, y}` 归一化 0~1 的构图焦点。竖图或主体偏一侧时决定裁切保留哪里，默认 `{0.5, 0.5}` 即居中（= 旧行为） |
+  | `alt` | 无障碍替代文本。留空退化为通用描述；信息性图片建议填 |
+  | `date` / `place` | 美术馆展签的「日期 · 地点」，留空则整栏不显示 |
 - `photoNextBtn`、`photoPrevBtn`（照片章的前后导航文案）
 - `story.letters[]`：`{ date?, title, content, image?, audio? }`（空数组 → 该章自动跳过；兼容旧顶层 `letters[]`）
 - `story.timeline[]` / `story.memories[]` / `story.promises[]`：预留（时间轴模块）
@@ -168,4 +200,8 @@ experience: { chapters: [
 | `.button-group.paired` | 窄屏成对并排 | 小事 / 档案 / 惊喜章 |
 
 ## 未来方向
-全息卡片：`photos[]` 条目加 `style: "holo"` 后由渲染器分发。数据接口已就位；调研结论是 pokemon-cards-css（GPL-3.0）只能借鉴思路，可直接移植的 MIT 候选是 vanilla-tilt.js，需自行叠加 shine/glare 层并提供触摸回退。见 ROADMAP。
+全息卡片：`photos[]` 条目加 `style: "holo"` 后由渲染器分发。调研结论是 pokemon-cards-css（GPL-3.0）只能借鉴思路，可直接移植的 MIT 候选是 vanilla-tilt.js，需自行叠加 shine/glare 层并提供触摸回退。见 ROADMAP。
+
+> ⚠️ `style` **目前不在契约里** —— 因为它还没有任何渲染层读取方，而契约的规则是
+> 「没有读取方的字段不进契约」（见 CONFIG_CONTRACT §7）。加它的正确顺序是：
+> **先写渲染器 → 再声明字段 → 六处同步**，而不是先往 `config.js` 里放一个没人读的字段。
