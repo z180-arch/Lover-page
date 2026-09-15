@@ -515,15 +515,36 @@ function renderPhoto() {
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLb(); }
             });
         }
-        // 相邻照片预取，切上一张/下一张时不用等网络
-        const list = config.photos || [];
-        [photoIndex + 1, photoIndex - 1].forEach(i => {
-            const p = list[(i + list.length) % list.length];
-            if (p && !/\.(mp4|webm|mov|ogg|m4v)(\?|$)/i.test(p.src || '')) {
+        /* 相邻照片预取：切上一张/下一张时不用等网络。
+         *
+         * 但**只在照片章真的可见时**预取。原因是实测出来的（见
+         * docs/qa/PERFORMANCE_BASELINE.md §3.3）：`renderPhoto()` 在 DOMContentLoaded
+         * 就会跑一次，而它当时在 `.hidden` 的 section 里 —— 于是两张相册图
+         * （landscape-02 + landscape-08，合计 244.5KB）在首屏被完整下载，
+         * 占首屏 transfer 的 33.5%，并且会和 LCP 主图抢带宽（手机端 LCP 2000ms）。
+         *
+         * 注意 `new Image()` 预取**不受** `loading="lazy"` 约束 —— 所以给这两张图加
+         * lazy 是没用的，必须在这里加守卫（这是本轮踩到的坑）。
+         *
+         * 代价：第一次进照片章后点「下一张」，那一张没有预取（有 is-loading +
+         * 揭幕动画兜底）；之后恢复正常。 */
+        const photoSection = document.getElementById('question6');
+        if (photoSection && !photoSection.classList.contains('hidden')) {
+            const list = config.photos || [];
+            [photoIndex + 1, photoIndex - 1].forEach(i => {
+                const p = list[(i + list.length) % list.length];
+                /* 预取**必须和渲染层取同一个 URL**：photoMediaHtml() 用的是
+                 * `p.thumb || p.src`（script.js:457）。这里原先无条件取 p.src，
+                 * 一旦用户配了 thumb，就会白下载一整张原图 —— 既浪费字节，
+                 * 又完全不会加快切换（浏览器真正要的是 thumb）。当前默认配置
+                 * 没有任何一项设 thumb，所以这个偏差一直没被暴露出来。 */
+                const url = p && (p.thumb || p.src);
+                if (!url) return;
+                if (/\.(mp4|webm|mov|ogg|m4v)(\?|$)/i.test(url)) return;
                 const im = new Image();
-                im.src = p.src;
-            }
-        });
+                im.src = url;
+            });
+        }
     }
     if (video) {
         video.muted = true;
