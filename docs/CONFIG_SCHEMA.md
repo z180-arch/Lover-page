@@ -1,6 +1,9 @@
 # CONFIG_SCHEMA
 
-所有内容在 `config.js`。五层结构，均可独立替换。标 `?` 的字段可省略。
+所有内容在 `config.js`。五层结构（metadata / media / theme / Content / experience），均可独立替换。标 `?` 的字段可省略。
+
+> 主题不是「一层」，而是**两层**：`themes/*.js` 里的整套视觉预设（结构层），叠加 `config.theme` 里的实例级覆盖（差异层）。
+> 详见下方 `## theme`。渲染管线：`themes/<preset>.js` → `themes/index.js`（解析）→ `theme.js`（合并 + 写 CSS 变量）。
 
 ## metadata — 模板实例信息
 ```js
@@ -14,6 +17,32 @@ media: { photos: "./assets/photos/", videos: "./assets/videos/",
 ```
 
 ## theme — 视觉层
+
+### 主题来源与解析
+
+主题名解析优先级（高 → 低）：
+
+| 来源 | 写法 | 用途 |
+|---|---|---|
+| URL 参数 | `index.html?theme=night-archive` | 对比测试 / 临时预览，**不入库** |
+| 实例声明 | `metadata.template: "night-archive"` | 正式来源 |
+| 兜底 | `warm-paper` | 保证永远有主题可用 |
+
+主题名打错、文件没加载 → 控制台报错并退回 `warm-paper`，**绝不出现无样式页面**。
+
+### 内置预设
+
+| 名 | 定位 | 关键差异 |
+|---|---|---|
+| `warm-paper` | 暖纸 · 默认 | 奶油纸底、`#a8544f` 砖红、圆角 14px 面板卡 |
+| `night-archive` | 夜档案馆 | `#171412` 暗底、`#ece5db` 墨、圆角 6px、花瓣隐藏、更多章节溶掉面板 |
+| `modern-paper` | 现代编辑 | 纯白无面板卡（`panel: transparent` / 圆角 0 / 无阴影）、无衬线正文、`#35506b` 钢蓝 |
+
+注册表：`window.LPThemeRegistry`（`list() / has() / get() / resolve() / requestedName()`）+ `window.LP_THEMES`（预设本体）。
+当前主题运行时查询：`window.LPTheme.name()` / `.current()`。
+
+### 实例级覆盖（`config.theme`）
+
 ```js
 theme: {
   colors: { gradient: ["#f7ece2","#f3d5cb","#f7ddc0","#f2e6d9"],  // mesh gradient 四色
@@ -31,6 +60,36 @@ theme: {
   components: {}                            // 预留：photoStyle / letterStyle / buttonStyle
 }
 ```
+
+**重要：这里只写「与预设不同」的值。** `theme.js` 的 `overrideIfChanged()` 只覆盖与 `warm-paper`
+基准不同的字段 —— 这样切换预设时不会被 `config.theme` 里的陈旧默认值拉回暖纸色。
+预设里已有的结构（`surface / ink / accent / lines / type / container / mesh / petal / paper`）
+不需要在 `config.js` 里重复声明。
+
+### 预设声明的字段（`themes/*.js`）
+
+| 组 | 字段 | 落到 CSS 变量 |
+|---|---|---|
+| `surface` | `paper / paper2 / paper3 / panel / panelAlt` | `--paper*`、`--panel-bg` |
+| `ink` | `ink / soft / faint / muted / canvas` | `--ink`、`--ink-soft`、`--ink-faint`、`--ink-muted`、`--ink-canvas` |
+| `accent` | `main / deep / onAccent / soft` | `--accent*`、`--button-color` |
+| `lines` | `hairline / hairlineStrong / line / lineStrong` | `--hairline*`、`--ink-line` |
+| `type` | `display / body / scale / weight / tracking` | `--font-*`、`--fs-*`、`--fw-*`、`--track-*` |
+| `container` | `background / border / radius / shadow / padding / dissolveSteps` | `--panel-*` |
+| `fx` / `motion` | 阴影与动效时长 | `--shadow-*` |
+| `mesh` / `petal` | 首屏渐变与花瓣色 | `--mesh-*`、`--petal-*`、legacy `--background-color-*` |
+| `paper` | `sheet / flap / tape / wash* / seal / accentLine` | `--sheet-bg`、`--flap-bg`、`--tape`、`--wash*`、`--seal` |
+| `hero` | `rose` | 第一屏主视觉（留空 = 隐藏） |
+
+**`container.dissolveSteps`**（逗号分隔的 step 清单 + `celebration`）决定哪些章节「溶掉」面板卡 ——
+正文直接落在纸底上，解决「八章同一张卡」的同构问题。`state.js` 的 `syncDissolve()` 写入
+`body[data-dissolve]`，CSS 据此淡出面板。
+
+### 对比度要求
+
+四档墨色里，落在**最深纸底或面板溶解后**正文上的必须是 `--ink-canvas`（≥4.5:1），
+`--ink-faint` 只用于浅底。已用浏览器实测三套主题（见 `docs/design/THEME_REGISTRY.md`），
+axe-core 的 `color-contrast` 对本项目**不可信** —— mesh gradient 由 canvas 绘制，工具算不出底色，必须手工换算。
 
 ## Content — 内容层（扁平键，向后兼容）
 - `home: { title, subtitle, startBtn, enTitle? }`、`valentineName?`
@@ -68,12 +127,26 @@ theme: {
 ## experience — 章节层
 ```js
 experience: { chapters: [
-  { step: 2, id: "quiz",   label: "壹", progress: 16, enabled: true },
-  { step: 7, id: "letters", label: "陆", progress: 90, enabled: true },
+  { step: 2, id: "quiz",    label: "壹", title: "默契", enabled: true, progress: 16 },
+  { step: 7, id: "letters", label: "陆", title: "来信", enabled: true, progress: 90 },
   // … 省略 = 使用内置默认（序/壹-柒/终 + 自动进度）
 ] }
 ```
-`label` / `progress` 覆盖旅程线；留空则用内置默认。
+
+| 字段 | 含义 | 谁来读 |
+|---|---|---|
+| `step` | 对应 `#questionN` 的序号，**主键，不可重复** | `state.js` 路由 |
+| `id` | 模块标识（`home / quiz / meter / questions / smallthings / photos / letters / surprise`） | 无耦合读取，便于扩展 |
+| `label` | 旅程线编号（序 / 壹 … 柒） | `state.js → journeyFor()` |
+| `title` | 本章 kicker 章名，**唯一来源**；留空则不显示 kicker | `script.js → renderChapterKickers()` |
+| `enabled` | `false` = 整章跳过（不渲染、不计入进度） | `state.js → chapterEnabled()` |
+| `progress` | 进度线百分比 | `state.js → journeyFor()` |
+
+**跳章是双保险**：`enabled: false`（结构层）与内容为空（数据层，见上表 `CHAPTER_CONTENT_COUNT`）
+任一成立即跳过。两者独立 —— 想临时关掉一章用 `enabled`，忘了填内容则由判空兜住。
+
+新增章节时：在 `chapters[]` 里加一行 + 在 `index.html` 加对应 `#questionN` 结构，
+**不需要动 renderer 的分发逻辑**。
 
 ## 分享链接（`?conf=`）
 

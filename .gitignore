@@ -3,6 +3,11 @@ Thumbs.db
 .DS_Store
 .zcode/
 
-# QA 运行产物（tools/qa 里的脚本与 steps 是资产，生成的 batch JSON 不是）
+# QA 运行产物（tools/qa 里的脚本与 steps 是资产，生成的 batch JSON 与日志不是）
 tools/qa/*.batch.json
+tools/qa/t*.json
 /tmp-qa/
+/.qa-out/
+
+# Agent 本地工作区（对话缓存 / 每日 memory）。给 Agent 长期看的约定请写进 AGENTS.md 与 docs/
+.workbuddy/
